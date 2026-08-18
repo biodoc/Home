@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "Starter registry of public ArcGIS parcel layers, keyed by a short slug.",
+    "These endpoints were NOT reachable from the environment this file was written in,",
+    "so treat every entry as unverified until you run: npm run lot -- layers --check",
+    "Adding your own is the expected workflow. To find a county's layer, search",
+    "'<county> <state> parcels ArcGIS REST' or browse the county/state GIS open-data",
+    "portal, then copy the FeatureServer/MapServer layer URL (it ends in a number)."
+  ],
+  "layers": {
+    "dc": {
+      "label": "Washington, DC — Office of Tax and Revenue parcels",
+      "url": "https://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/Property_and_Land_WebMercator/MapServer/12",
+      "verified": false
+    },
+    "nyc": {
+      "label": "New York City — MapPLUTO tax lots",
+      "url": "https://services5.arcgis.com/GfwWNkhOj9bNBqoJ/arcgis/rest/services/MAPPLUTO/FeatureServer/0",
+      "verified": false
+    },
+    "king-wa": {
+      "label": "King County, WA — parcels",
+      "url": "https://gismaps.kingcounty.gov/arcgis/rest/services/Property/KingCo_Parcels/MapServer/0",
+      "verified": false
+    },
+    "travis-tx": {
+      "label": "Travis County, TX — parcels",
+      "url": "https://services.arcgis.com/0L95CJ0VTaxqcmED/arcgis/rest/services/TCAD_public/FeatureServer/0",
+      "verified": false
+    }
+  }
+}
