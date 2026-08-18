@@ -23,3 +23,7 @@ Open the URL Vite prints (default `http://localhost:5173`).
 - The COCO-SSD model only knows ~80 categories. For anything it misses (jewelry, art, appliances, tools), use **+ Add row** to enter items manually.
 - Everything runs locally in your browser. Photos are never uploaded.
 - "Clear all" wipes localStorage; export first if you want a backup.
+
+## Other apps in this repo
+
+- [`pain-assessment/`](pain-assessment/) — Pain Mapper: an offline single-file pain assessment that walks you through movement tests on a 0–4 scale and returns likely pain patterns plus a trigger point massage plan.

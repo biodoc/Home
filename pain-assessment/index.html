@@ -1,0 +1,1944 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="mobile-web-app-capable" content="content=yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Pain Mapper</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c232c; --line:#2a3038;
+  --txt:#e6edf3; --dim:#8b949e; --accent:#58a6ff;
+  --s0:#16a34a; --s1:#84cc16; --s2:#eab308; --s3:#f97316; --s4:#dc2626;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  overscroll-behavior-y:contain}
+body{padding-bottom:calc(12px + var(--safe-b))}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.wrap{max-width:560px;margin:0 auto;padding:0 14px}
+
+/* ---------- top bar ---------- */
+header{position:sticky;top:0;z-index:40;background:rgba(13,17,23,.94);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar{max-width:560px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:10px}
+.brand{font-weight:700;letter-spacing:.2px;font-size:15px;flex:1;display:flex;align-items:center;gap:8px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--s0);box-shadow:0 0 10px var(--s0)}
+.pill{font-size:12px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);white-space:nowrap}
+.pill.on{color:var(--txt);border-color:#3d4650;background:var(--panel2)}
+.prog{height:3px;background:#20262e}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--s0),var(--accent));
+  width:0;transition:width .35s ease}
+
+/* ---------- generic ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+h1{font-size:24px;line-height:1.25;margin:18px 0 8px}
+h2{font-size:17px;margin:22px 0 8px}
+h3{font-size:15px;margin:0 0 6px}
+p{margin:8px 0}
+.dim{color:var(--dim)}
+.sm{font-size:13.5px}
+.xs{font-size:12.5px}
+.center{text-align:center}
+.row{display:flex;gap:8px}
+.grow{flex:1}
+.btn{display:block;width:100%;padding:15px;border-radius:14px;background:var(--panel2);
+  border:1px solid var(--line);font-weight:600;text-align:center;transition:.12s}
+.btn:active{transform:scale(.985)}
+.btn.primary{background:linear-gradient(180deg,#1f6feb,#1858c4);border-color:#2b6fd6;color:#fff}
+.btn.ghost{background:none}
+.btn.sm{padding:10px 14px;font-size:14px;width:auto}
+.tag{display:inline-block;font-size:11.5px;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+
+/* ---------- question ---------- */
+.qwrap{padding-top:6px}
+.qmeta{display:flex;align-items:center;gap:8px;margin:14px 0 6px;flex-wrap:wrap}
+.qtitle{font-size:22px;font-weight:700;line-height:1.3;margin:6px 0 10px}
+.qcue{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:10px;padding:13px 14px;font-size:15.5px;color:#cfd8e3}
+.qcue b{color:#fff}
+.qnote{font-size:13px;color:var(--dim);margin-top:10px}
+.qnote.warn{color:#f0b429}
+
+/* scale buttons */
+.scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:18px}
+.sbtn{aspect-ratio:1/1.15;min-width:0;border-radius:16px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1px;font-weight:800;font-size:28px;
+  color:#08120a;border:2px solid rgba(255,255,255,.12);transition:.1s;position:relative;overflow:hidden}
+.sbtn small{font-size:9px;font-weight:700;opacity:.78;letter-spacing:0;text-transform:uppercase;
+  max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbtn:active{transform:scale(.93)}
+.sbtn[data-v="0"]{background:var(--s0)}
+.sbtn[data-v="1"]{background:var(--s1)}
+.sbtn[data-v="2"]{background:var(--s2)}
+.sbtn[data-v="3"]{background:var(--s3);color:#1a0c02}
+.sbtn[data-v="4"]{background:var(--s4);color:#fff}
+.sbtn.sel{outline:3px solid #fff;outline-offset:2px}
+.slabels{display:flex;justify-content:space-between;margin-top:9px;font-size:12px;color:var(--dim)}
+
+/* choice */
+.choices{display:grid;gap:10px;margin-top:16px}
+.choice{padding:16px;border-radius:14px;background:var(--panel);border:1px solid var(--line);text-align:left}
+.choice b{display:block;font-size:16px}
+.choice span{font-size:13px;color:var(--dim)}
+.choice.sel{border-color:var(--accent);background:#152234}
+
+/* actions */
+.actions{display:flex;gap:8px;margin-top:16px}
+.act{flex:1;padding:12px;border-radius:12px;border:1px solid var(--line);
+  background:var(--panel);font-size:13.5px;font-weight:600;color:var(--dim)}
+.act.has{color:var(--accent);border-color:#2b4a70}
+
+/* comment sheet */
+.sheet{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:none}
+.sheet.open{display:block}
+.sheet .inner{position:absolute;left:0;right:0;bottom:0;background:var(--panel);
+  border-radius:18px 18px 0 0;border-top:1px solid var(--line);
+  padding:18px 16px calc(18px + var(--safe-b));max-width:560px;margin:0 auto;
+  max-height:88vh;overflow-y:auto}
+textarea{width:100%;min-height:110px;background:var(--bg);color:var(--txt);border:1px solid var(--line);
+  border-radius:12px;padding:12px;font:15px/1.45 inherit;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.chip{font-size:12.5px;padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--dim)}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(22px + var(--safe-b));transform:translateX(-50%) translateY(20px);
+  background:#243447;border:1px solid #35506e;color:#dbe7f5;padding:11px 16px;border-radius:12px;
+  font-size:13.5px;max-width:88%;opacity:0;pointer-events:none;transition:.25s;z-index:80;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- results ---------- */
+.hyp{border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0;background:var(--panel)}
+.hyp .top{display:flex;align-items:baseline;gap:10px}
+.hyp .nm{font-weight:700;font-size:16px;flex:1}
+.hyp .pct{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent)}
+.meter{height:7px;border-radius:99px;background:#20262e;margin:9px 0 10px;overflow:hidden}
+.meter i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#2f81f7,#58a6ff)}
+.hyp.rank1 .meter i{background:linear-gradient(90deg,#f97316,#fbbf24)}
+.why{font-size:13px;color:var(--dim);margin-top:8px}
+.why b{color:#b9c4d0;font-weight:600}
+
+.mus{border:1px solid var(--line);border-radius:14px;margin:10px 0;background:var(--panel);overflow:hidden}
+.mus>summary{padding:14px;cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.mus>summary::-webkit-details-marker{display:none}
+.mus .mn{font-weight:700;flex:1 1 auto;min-width:0}
+.mus .badges{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px}
+.mus .badges:empty{display:none}
+.mus .arrow{color:var(--dim);font-size:13px;margin-left:auto;flex:none}
+.mus[open] .arrow{transform:rotate(90deg)}
+.mus .body{padding:0 14px 14px;border-top:1px solid var(--line);margin-top:2px;padding-top:12px}
+.kv{margin:9px 0;font-size:14px}
+.kv b{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);margin-bottom:2px}
+.pri{font-size:11px;padding:3px 7px;border-radius:6px;background:#3b2a12;color:#f0b429;border:1px solid #5a4218}
+.pri.confirmed{background:#3a1418;color:#ff8b8b;border-color:#5c2027}
+
+.tbl{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+.tbl td{padding:8px 6px;border-bottom:1px solid var(--line)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td:last-child{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.dotv{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+
+.flag{border:1px solid #6e2a2a;background:#2a1214;border-radius:14px;padding:14px;margin:12px 0}
+.flag h3{color:#ff9b9b}
+.warnbox{border:1px solid #5a4218;background:#241b0d;border-radius:12px;padding:12px;font-size:13.5px}
+
+.figure{display:block;margin:6px auto 2px;max-width:210px}
+.figure .reg{stroke:#2a3038;stroke-width:1.5;transition:fill .3s}
+.legend{display:flex;justify-content:center;gap:12px;font-size:11.5px;color:var(--dim);margin-top:4px}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:4px}
+
+.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:none}
+.step .n{width:26px;height:26px;flex:none;border-radius:50%;background:var(--panel2);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent)}
+.step .t{flex:1;font-size:14px}
+.step .t b{display:block}
+.step .t span{color:var(--dim);font-size:13px}
+
+.hist{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}
+.hbox{flex:none;min-width:112px;padding:11px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.hbox b{display:block;font-size:13px}
+.hbox span{font-size:11.5px;color:var(--dim)}
+hr.sep{border:none;border-top:1px solid var(--line);margin:22px 0}
+a{color:var(--accent)}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><span class="dot" id="brandDot"></span><span>Pain Mapper</span></div>
+    <button class="pill" id="posPill" onclick="openAdjust()">Sitting</button>
+    <button class="pill" id="adjPill" onclick="openAdjust()">Adjust</button>
+  </div>
+  <div class="prog"><i id="progBar"></i></div>
+</header>
+
+<main id="app" class="wrap"></main>
+
+<div class="sheet" id="sheet"><div class="inner" id="sheetInner"></div></div>
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+   MUSCLE / TRIGGER POINT LIBRARY
+   Referral patterns follow the standard myofascial trigger point maps
+   (Travell & Simons). Every entry: where the muscle is, what it refers,
+   how to press it safely, dose, and the stretch that follows.
+   ===================================================================== */
+const M = {
+/* ---------- neck & head ---------- */
+upper_trap:{n:"Upper trapezius",area:"neck",
+  loc:"The thick ridge running from the side of your neck out to the tip of your shoulder. The main knot sits about halfway along that ridge, in the meaty part you instinctively grab.",
+  ref:"Up the side of the neck, behind the ear, and into the temple or behind the eye — the classic 'tension headache' arc. It can also ache into the angle of the jaw.",
+  how:"Pincer grip: reach across with the opposite hand, take the whole ridge between thumb and fingers, and lift it away from the neck. Squeeze until you feel a firm ache, then hold still. Tip your head away from that side to shorten the muscle first if it feels too sharp.",
+  dose:"Hold each tender spot 30–60 s until the ache drops by about half. 2–3 spots per side, 2–3× a day.",
+  stretch:"Sit on your hand to anchor the shoulder. Tip the ear toward the opposite shoulder, then turn your nose toward your armpit. 30 s, 3×.",
+  caution:"Squeeze the muscle ridge itself — do not press into the soft front or side of the neck where the pulse is."},
+levator:{n:"Levator scapulae",area:"neck",
+  loc:"Runs from the top inner corner of the shoulder blade up to the side of the neck. Find the upper inner corner of the shoulder blade and press just above it, angling toward the bone.",
+  ref:"The 'crick in the neck' — a sharp ache at the angle where the neck meets the shoulder, often with a hard stop when turning the head to that side.",
+  how:"Ball against a wall, or the opposite thumb hooked over the shoulder onto the inner corner of the blade. Rotate your head away from the side you're pressing to expose the attachment.",
+  dose:"30–60 s per spot, 2–3× a day. Follow immediately with the stretch or it re-tightens.",
+  stretch:"Turn your head 45° away from the tight side, then look down at your pocket. Hand on the back of your head adds light weight. 30 s, 3×.",
+  caution:"If turning your head is limited by a hard block rather than by pain, ease off — that pattern belongs to a joint, not the muscle."},
+suboccipital:{n:"Suboccipitals",area:"neck",
+  loc:"The small deep muscles right where the skull meets the neck — the shelf of bone at the very base of the back of your head, about an inch either side of the midline.",
+  ref:"A deep band of headache that wraps from the base of the skull through the head to behind the eye. Feels like the head itself hurts, not the neck.",
+  how:"Lie on your back with two tennis balls in a sock, or one ball, tucked right under the base of the skull. Let the head's weight do the work. Small slow nods (chin toward chest) while it presses.",
+  dose:"90 s to 3 min total. Very effective for screen and phone headaches. 1–2× a day.",
+  stretch:"Chin tuck: pull the chin straight back (make a double chin) without tipping the head. Hold 5 s, 10 reps.",
+  caution:"Stop if you get dizzy, visual change, or nausea. Keep pressure on bone-adjacent muscle, never on the throat side."},
+scm:{n:"Sternocleidomastoid (SCM)",area:"neck",
+  loc:"The rope-like muscle that stands out at the front-side of your neck when you turn your head to the opposite side.",
+  ref:"Forehead, above and behind the eye, into the ear and cheek. A big cause of dizziness, 'sinus' pain, and pain that feels like it's inside the head.",
+  how:"Turn your head to the opposite side so the rope pops out. Pinch it gently between thumb and index finger — the whole rope, lifted away from the neck — and work slowly from collarbone to ear.",
+  dose:"Light pressure only. 20–30 s per level, 3 levels, once a day.",
+  stretch:"Tip the ear away, then turn the nose up toward the ceiling on the stretched side. 20 s.",
+  caution:"Pinch the muscle only — never press flat into the neck. If you feel a pulse under your fingers, move. Skip entirely if you have carotid disease, a stroke history, or are on blood thinners."},
+scalene:{n:"Scalenes",area:"neck",
+  loc:"In the hollow just above the collarbone, behind and slightly under the SCM rope.",
+  ref:"A wide, confusing spread: front of the chest, the inner edge of the shoulder blade, down the outside of the arm to the thumb and index finger. It is the most common muscular impostor of a pinched nerve.",
+  how:"Fingertip pressure, very light, in the hollow above the collarbone. Tip your head toward the same side to soften it first. Press, then slowly tip the head away to add a pin-and-stretch.",
+  dose:"15–30 s per spot, gentle. Once a day.",
+  stretch:"Anchor the collarbone with the opposite hand, tip the ear away, and turn the nose slightly toward the tight side. 20 s.",
+  caution:"The nerves and artery for the whole arm pass here. If pressing causes tingling or shooting into the arm, back off to feather-light or skip. Never press hard behind the collarbone."},
+splenius:{n:"Splenius capitis & cervicis",area:"neck",
+  loc:"Diagonal band running from the upper back up under the trapezius to the base of the skull, midway between the spine and the shoulder ridge.",
+  ref:"Splenius capitis sends pain to the top of the head; splenius cervicis sends it to the back of the skull, into the eye, and to the neck-shoulder angle.",
+  how:"Ball against a wall, positioned between the spine and the shoulder blade at neck-base level. Slow head nods while pressing.",
+  dose:"45–60 s per spot, 2× a day.",
+  stretch:"Turn the head 30° away, then tuck the chin and let the head drop forward. 30 s.",
+  caution:"Keep off the bony spine itself."},
+masseter:{n:"Masseter",area:"jaw",
+  loc:"The jaw muscle at the back corner of your jaw, bulging when you clench your teeth.",
+  ref:"Into the lower and upper back teeth, the jaw joint, the ear (including ringing), and up into the eyebrow.",
+  how:"Clench once to find it, then relax. Press with 2–3 fingertips outside, or better, pincer it: thumb inside the cheek (clean hands), fingers outside, and squeeze slowly from cheekbone to jaw angle.",
+  dose:"30–45 s per spot, 2–3 spots, 2× a day.",
+  stretch:"Open slowly with the tongue on the roof of the mouth; hold the widest comfortable point 10 s, 5×.",
+  caution:"Go slow — this muscle is very reactive. Skip if the jaw locks or clicks painfully; that needs a dentist or physio."},
+temporalis:{n:"Temporalis",area:"jaw",
+  loc:"The fan-shaped muscle over the temple, above and in front of the ear. It moves under your fingers when you clench.",
+  ref:"Temple headache, into the eyebrow and upper teeth.",
+  how:"Small circles with 2 fingertips, working the fan from front to back, then sustained hold on the tenderest point.",
+  dose:"60–90 s total, 2× a day.",
+  stretch:"Jaw relaxation: teeth apart, tongue on the palate, lips closed — hold 2 min.",
+  caution:"Light-to-moderate pressure only."},
+
+/* ---------- shoulder & scapula ---------- */
+infraspinatus:{n:"Infraspinatus",area:"shoulder",
+  loc:"Flat muscle covering the lower two-thirds of the back of the shoulder blade, below the horizontal ridge you can feel across the blade.",
+  ref:"Deep into the FRONT of the shoulder — this is the number-one reason a shoulder hurts in front but the cause sits behind. Also down the outside of the arm and into the hand.",
+  how:"Lie on a ball on the floor, or lean into it against a wall or door frame. Roll slowly until you hit the spot that reproduces the front-of-shoulder ache; that confirmation is the point. Then hold still and breathe.",
+  dose:"60–90 s per spot, 2–3 spots, 2× a day.",
+  stretch:"Cross-body: pull the arm across the chest with the other hand, 30 s. Then sleeper stretch on your side if tolerated.",
+  caution:"Stay on the shoulder blade itself; don't grind on the bony ridge."},
+supraspinatus:{n:"Supraspinatus",area:"shoulder",
+  loc:"In the trough above the horizontal ridge of the shoulder blade, under the upper trapezius. Press down through the trap to find it.",
+  ref:"Deep in the shoulder and the outer upper arm, often with a distinct ache at the elbow. Hurts most in the middle of the arc when raising the arm sideways.",
+  how:"Fingertips or thumb pressing down and forward into the trough. Or a ball in a corner of a wall.",
+  dose:"45–60 s per spot, 2× a day.",
+  stretch:"Cross-body reach and a doorway pec stretch to open the space in front.",
+  caution:"If raising the arm has become sharply weak rather than just painful, get the cuff checked before loading it."},
+subscapularis:{n:"Subscapularis",area:"shoulder",
+  loc:"On the underside of the shoulder blade, reachable only from the armpit. Let the arm hang, reach into the back wall of the armpit, and you'll feel a broad sheet on the blade's front face.",
+  ref:"Back of the shoulder plus a distinctive band of pain around the wrist. Locks up outward rotation — the top cause of a 'frozen' feeling shoulder.",
+  how:"Lie on your back, arm out to the side, elbow bent. With the opposite hand reach into the armpit, fingers curling around the back wall onto the blade. Press gently and hold; slowly rotate the arm outward while holding.",
+  dose:"30–60 s per spot, 2–3 spots, once a day. Expect this one to be very tender.",
+  stretch:"Doorway external rotation: elbow at your side bent 90°, forearm against the frame, turn your body away. 30 s.",
+  caution:"Big nerves and vessels run through the armpit's front and center. Stay on the shoulder blade at the back wall, and stop if you feel tingling."},
+teres:{n:"Teres major & minor",area:"shoulder",
+  loc:"The rounded bundle along the outer border of the shoulder blade, running toward the armpit.",
+  ref:"Teres minor: a focused spot deep in the back of the shoulder. Teres major: back of the shoulder and down the back of the arm.",
+  how:"Pincer grip on the fold at the back of the armpit — grab the whole bundle between thumb and fingers and squeeze.",
+  dose:"30–45 s, 2× a day.",
+  stretch:"Reach the arm overhead and lean away; or cross-body stretch.",
+  caution:"None significant."},
+pec_minor:{n:"Pectoralis minor",area:"shoulder",
+  loc:"Under the pec major, running from the upper ribs to the front bony point of the shoulder (coracoid). Find the bony bump just below the outer end of the collarbone and press down and in from there.",
+  ref:"Front of the shoulder, down the inner arm to the ring and little fingers. Tilts the shoulder blade forward, which pinches the shoulder from above.",
+  how:"Fingertips or a ball on a wall, pressing at an angle up and under the pec toward the armpit. Let the arm hang relaxed.",
+  dose:"45–60 s, 2× a day.",
+  stretch:"Doorway stretch with the elbow slightly ABOVE shoulder height, 30 s, 3×.",
+  caution:"Nerves to the arm pass under this muscle. If you get tingling in the hand, lighten up or move slightly."},
+pec_major:{n:"Pectoralis major",area:"shoulder",
+  loc:"The main chest muscle, from the breastbone out to the arm.",
+  ref:"Front of the chest, front of the shoulder, and down the inner arm. Left-sided pec trigger points can mimic cardiac pain.",
+  how:"Ball on a wall or a doorframe corner, working the fibers from breastbone outward. Also pincer the front fold of the armpit.",
+  dose:"45–60 s per line, 2× a day.",
+  stretch:"Doorway stretch at three heights: elbow low, at shoulder height, and high. 30 s each.",
+  caution:"Chest pain with shortness of breath, sweating, or nausea is a call-for-help situation, not a massage problem."},
+rhomboid:{n:"Rhomboids",area:"midback",
+  loc:"Between the inner border of the shoulder blade and the spine.",
+  ref:"A superficial burning ache along the inner edge of the shoulder blade — exactly where people say 'the knot in my back'.",
+  how:"Ball on a wall between blade and spine. Hug yourself first to slide the blade sideways and expose the muscle.",
+  dose:"45–60 s per spot, 2× a day.",
+  stretch:"Reach both arms forward and round the upper back, pushing the blades apart. 30 s.",
+  caution:"If treating here helps for only minutes, the real driver is usually the scalenes or infraspinatus — treat those too."},
+serratus_post_sup:{n:"Serratus posterior superior",area:"midback",
+  loc:"Underneath the shoulder blade, at its upper inner region.",
+  ref:"A deep, hard-to-reach ache 'under the shoulder blade' that also spreads down the back of the arm to the little finger.",
+  how:"Reach the arm across your chest to slide the blade outward, then place a ball where the blade used to be and lean into a wall.",
+  dose:"60 s per spot, 2× a day.",
+  stretch:"Wrap-around: hug yourself, round forward and breathe wide into the upper back. 30 s.",
+  caution:"None significant."},
+serratus_ant:{n:"Serratus anterior",area:"midback",
+  loc:"The finger-like slips along the side of your ribcage, under the armpit.",
+  ref:"Side of the chest and the tip of the shoulder blade, with a distinct 'can't get a full breath' feeling and a stitch when running.",
+  how:"Side-lying with a ball under the ribs below the armpit, or fingertips walking rib to rib.",
+  dose:"30–45 s per rib space, once a day.",
+  stretch:"Overhead side-bend reach; deep breathing into the ribs while pressing.",
+  caution:"Stay on the muscle over the ribs; keep off breast tissue."},
+lat:{n:"Latissimus dorsi",area:"midback",
+  loc:"The broad wing from the low back and pelvis up into the armpit. The graspable part is the back fold of the armpit.",
+  ref:"A constant ache at the bottom tip of the shoulder blade, wrapping around to the front and down the inner arm to the ring and little fingers.",
+  how:"Pincer the back armpit fold. Or side-lying with the arm overhead and a foam roller under the ribs, rolling slowly.",
+  dose:"45–60 s per spot, 2× a day.",
+  stretch:"Reach overhead, grab the wrist and side-bend away. 30 s, 3×.",
+  caution:"None significant."},
+thoracic_es:{n:"Thoracic erector spinae",area:"midback",
+  loc:"The two long columns running vertically either side of the spine through the mid-back.",
+  ref:"Up and down the back along the columns, and often out to the flank and down to the buttock from lower segments.",
+  how:"Two balls either side of the spine (never on it) against a wall or floor. Slow up-and-down travel, pausing on tender points.",
+  dose:"2–3 min total, 2× a day.",
+  stretch:"Foam roller or rolled towel across the mid-back, arms overhead, gentle extension over it. 60–90 s.",
+  caution:"Never press directly on the bony spine. Bone-thinning or osteoporosis means skip the roller extension."},
+deltoid:{n:"Deltoid",area:"shoulder",
+  loc:"The cap of the shoulder, front, side, and back.",
+  ref:"Local, right where it sits — no dramatic far referral. Front fibers ache with lifting forward, back fibers with reaching behind.",
+  how:"Fingertips or a ball on a wall, working each of the three sections in turn.",
+  dose:"30–45 s per section, 2× a day.",
+  stretch:"Cross-body for the back fibers, doorway for the front fibers.",
+  caution:"None significant."},
+biceps_long:{n:"Biceps (long head)",area:"shoulder",
+  loc:"The tendon groove at the front of the shoulder, and the muscle belly down the front of the arm.",
+  ref:"Front of the shoulder and down into the crook of the elbow.",
+  how:"Gentle cross-fiber strumming across the muscle belly. Keep off the tendon itself if it is sharply tender.",
+  dose:"30–45 s, once a day.",
+  stretch:"Arm back and out to the side against a doorframe, palm forward, turn away. 20 s.",
+  caution:"A sharply tender tendon at the front of the shoulder wants relative rest, not deep massage."},
+
+/* ---------- low back, hip, pelvis ---------- */
+ql:{n:"Quadratus lumborum (QL)",area:"lowback",
+  loc:"In the gap between your lowest rib and the top of your pelvis, a few inches out from the spine — the soft window in your side-back.",
+  ref:"Along the top rim of the pelvis, into the sacrum and the SI joint area, and down into the buttock and outer hip. Hurts most rolling over in bed, standing up from a chair, and coughing.",
+  how:"Side-lying on the non-painful side with a pillow under the waist to open the gap. Reach over and press a ball or thumb into the window, angling slightly toward the spine but staying off the bone. Or stand and lean a ball into a wall at that level.",
+  dose:"60–90 s per spot, 2–3 spots each side, 2× a day.",
+  stretch:"Standing side-bend with the arm overhead, hip pushed out to the opposite side. 30 s, 3× each side.",
+  caution:"This region overlies the kidney. Use firm muscular pressure, not deep thrusting, and stop for any deep sickening or flank-to-groin pain."},
+lumbar_es:{n:"Lumbar erector spinae",area:"lowback",
+  loc:"The two thick vertical ropes either side of the low spine, most obvious at belt level.",
+  ref:"Downward — lower segments refer into the buttock and the top of the pelvis; upper lumbar segments refer down toward the belt line.",
+  how:"Two balls (a peanut or two balls in a sock) either side of the spine while lying on your back, knees bent. Sink for 60 s per level.",
+  dose:"2–3 min total, 2× a day.",
+  stretch:"Knees to chest, or child's pose, 30–60 s — only if bending forward doesn't aggravate your pain.",
+  caution:"Never on the bony spine. If bending forward reproduces leg pain, skip the flexion stretch and use gentle extension instead."},
+multifidus:{n:"Multifidus / deep segmental muscles",area:"lowback",
+  loc:"Right beside the bony spine, filling the groove between the vertebrae and the erector ropes.",
+  ref:"A tight local band across one or two segments, sometimes down to the back of the pelvis.",
+  how:"Lie on your back with a ball just off the midline in the groove. Very small pressure, long hold, deep breathing.",
+  dose:"60–90 s per level, once a day.",
+  stretch:"Gentle knees-side-to-side rotation, 10 slow reps each way.",
+  caution:"Off the bone. If pressure creates leg symptoms, stop."},
+glute_max:{n:"Gluteus maximus",area:"hip",
+  loc:"The main bulk of the buttock.",
+  ref:"Local buttock ache, often worst sitting on a hard chair or walking uphill. Referral stays inside the buttock.",
+  how:"Sit on a ball on a firm chair or the floor, lean into the tender spot, then slowly straighten and bend the knee to add movement.",
+  dose:"60–90 s per spot, 2× a day.",
+  stretch:"Figure-4: ankle across the opposite knee, pull the thigh toward your chest. 30–45 s.",
+  caution:"None significant."},
+glute_med:{n:"Gluteus medius",area:"hip",
+  loc:"Upper outer buttock — from the rim of the pelvis down toward the point of the hip. Put your hand on your side pocket and slide up and back.",
+  ref:"Across the top rim of the pelvis, into the sacrum and the SI region, and down into the buttock. A leading impostor of 'low back pain'.",
+  how:"Side-lying on a ball (top leg bent, foot on the floor for control) or leaning the hip into a ball on a wall. Work the whole fan from the pelvic rim down.",
+  dose:"60–90 s per spot, 3 spots per side, 2× a day.",
+  stretch:"Cross the painful leg behind the other, push the hip out sideways into a wall lean. 30 s.",
+  caution:"None significant."},
+glute_min:{n:"Gluteus minimus",area:"hip",
+  loc:"Deep under glute medius, deeper in the same upper-outer buttock zone, closer to the hip joint.",
+  ref:"The great sciatica impostor — pain running down the outside or the back of the leg all the way to the ankle, without any true nerve signs.",
+  how:"Side-lying on a ball, sinking deeper and slower than for glute medius. Pause on any spot that reproduces the leg pain — that reproduction is your confirmation.",
+  dose:"90 s per spot, 2× a day. Give it two weeks; this muscle is stubborn.",
+  stretch:"Figure-4 stretch, plus the cross-leg hip-out wall lean. 45 s.",
+  caution:"If pressing produces electric, shooting, or numb sensations rather than a deep familiar ache, back off and treat this as nerve involvement."},
+piriformis:{n:"Piriformis",area:"hip",
+  loc:"Deep in the middle of the buttock, on a line from the tailbone edge to the bony point of the hip, about halfway along.",
+  ref:"Buttock, back of the hip, and down the back of the thigh. Sitting makes it worse; the sciatic nerve runs right underneath or through it.",
+  how:"Sit on a ball on a firm surface, or lie on the floor on a ball with the knee of that side pulled toward the opposite shoulder to expose the muscle. Sustained, no rolling.",
+  dose:"60–90 s per spot, 2× a day.",
+  stretch:"Supine figure-4 pull, and the knee-to-opposite-shoulder stretch. 45 s, 3×.",
+  caution:"Ease off if you get shooting or electric symptoms down the leg — that is the nerve, and it doesn't want more pressure."},
+psoas:{n:"Iliopsoas (hip flexor)",area:"lowback",
+  loc:"Deep at the front. The iliacus lines the inner bowl of the pelvis, just inside the front hip bone. The psoas runs deep beside the lumbar spine into the abdomen.",
+  ref:"A vertical band of pain running up and down one side of the low spine, plus the front of the thigh and groin. Classically worst when standing up from sitting and when standing for a long time.",
+  how:"Safest version: the iliacus. Lie on your back with knees bent, find the front hip bone, slide your fingertips just INSIDE it and press toward the inside of the bowl. For psoas, lie knees bent, sink fingers slowly a couple of inches out from the navel, wait for the tissue to soften, then gently lift that foot to confirm the muscle tightens under your hand. A tennis ball under the front hip bone while lying face down is a gentler alternative.",
+  dose:"60–90 s, slow, once a day. Breathe out as you sink.",
+  stretch:"Half-kneeling lunge with the back-side glute squeezed and the tailbone tucked. 45 s, 3×.",
+  caution:"Never press on anything pulsing — the aorta lies near the midline; stay lateral, and if you feel a pulse, come off. Skip the abdominal version entirely if you are pregnant, have abdominal aneurysm risk, bowel disease, hernia, or recent abdominal surgery. Use the face-down ball version instead."},
+tfl:{n:"Tensor fasciae latae (TFL)",area:"hip",
+  loc:"The small muscle just below and in front of the front hip bone, on the outer front of the hip. It bulges when you lift the leg out to the side.",
+  ref:"Outer hip and down the outside of the thigh toward the knee. Painful to lie on that side at night.",
+  how:"Side-lying or face-down on a ball placed just below and in front of the hip bone. Sustained hold; add slow knee bends.",
+  dose:"60 s per spot, 2× a day.",
+  stretch:"Standing cross-leg side lean, or a couch-stretch variation with a slight lean away.",
+  caution:"Rolling the IT band itself (the tight strap on the side of the thigh) rarely helps; treat the TFL and glutes that feed it instead."},
+hamstring:{n:"Hamstrings (incl. sitting-bone attachment)",area:"hip",
+  loc:"Back of the thigh, from the sitting bone down to behind the knee.",
+  ref:"Upper fibers refer into the buttock crease and can mimic sciatica; lower fibers refer to the back of the knee and upper calf.",
+  how:"Sit on a firm edge or a ball to press the upper attachment; roll the belly slowly on a roller, pausing 45 s on tender spots.",
+  dose:"60 s per spot, 2× a day.",
+  stretch:"Foot on a low step, hips back, flat back, hinge forward. 30 s — go easy if it produces tingling.",
+  caution:"Sharp, pinpoint pain right at the sitting bone that hurts to sit on may be a tendon problem — that wants graded loading, not deep pressure."},
+adductor:{n:"Adductors (groin)",area:"hip",
+  loc:"Inner thigh, from the pubic bone down toward the inside of the knee.",
+  ref:"Deep groin and inner thigh, sometimes into the front of the hip and down toward the knee.",
+  how:"Lie face down with the leg out to the side, knee bent 90°, and a ball under the inner thigh. Sink slowly.",
+  dose:"60 s per spot, 2× a day.",
+  stretch:"Butterfly or a wide-stance side lunge. 45 s.",
+  caution:"Stay well below the very top of the inner thigh where the big vessels and lymph nodes sit."},
+rectus_fem:{n:"Rectus femoris",area:"knee",
+  loc:"The middle strap of the quadriceps, running from just below the front hip bone straight down to the kneecap.",
+  ref:"Deep into the front of the knee and the kneecap — often felt as night-time knee ache.",
+  how:"Face-down on a roller under the upper front thigh, or a ball on the upper third. The trigger point usually lives near the top, not near the knee.",
+  dose:"60–90 s, 2× a day.",
+  stretch:"Standing quad stretch with the tailbone tucked, or half-kneeling lunge with a heel pull. 45 s.",
+  caution:"None significant."},
+vastus_med:{n:"Vastus medialis (VMO)",area:"knee",
+  loc:"The teardrop bulge on the inner thigh just above the kneecap, and further up the inner thigh.",
+  ref:"Front and inner knee, plus a sudden buckling or giving-way feeling in the knee.",
+  how:"Ball or thumb pressure on the teardrop and up the inner thigh line, sustained.",
+  dose:"45–60 s per spot, 2× a day.",
+  stretch:"Standing quad stretch; then straight-leg raises to reactivate the muscle.",
+  caution:"None significant."},
+vastus_lat:{n:"Vastus lateralis",area:"knee",
+  loc:"The whole outer thigh, from the hip to just above the kneecap, under the IT band.",
+  ref:"Outer thigh and the outer edge of the knee. Trigger points here can glue the kneecap in place and make the knee feel stiff.",
+  how:"Side-lying on a roller or ball on the outer thigh. Slow, pausing 45–60 s per hot spot. Work the whole length — spots hide near the knee and near the hip.",
+  dose:"2–3 min per side, 2× a day.",
+  stretch:"Quad stretch plus a cross-leg side lean.",
+  caution:"This one is often very tender — reduce body weight through it by supporting yourself on your forearms."},
+popliteus:{n:"Popliteus",area:"knee",
+  loc:"Deep behind the knee, below the crease.",
+  ref:"Back of the knee, worst going downhill or down stairs.",
+  how:"Sit with the knee bent and press gently with fingertips into the soft area behind and below the knee crease, toward the inner side.",
+  dose:"30 s, light, once a day.",
+  stretch:"Gentle straight-leg hamstring and calf stretch.",
+  caution:"Do not dig behind the knee — nerves and vessels run through here. If you find a soft bulge behind the knee, or the calf is swollen, warm, and tender, stop and get it checked (blood clot / Baker's cyst)."},
+gastroc:{n:"Gastrocnemius",area:"foot",
+  loc:"The two visible calf bellies in the upper half of the calf.",
+  ref:"Into the arch of the foot and the back of the knee. The classic night calf-cramp muscle.",
+  how:"Sit and place the calf on the opposite knee, or on a roller with the other leg stacked on top for weight. Pause 45–60 s on tender points and slowly point and flex the foot.",
+  dose:"2 min per side, 2× a day.",
+  stretch:"Wall calf stretch with the knee STRAIGHT. 30 s, 3×.",
+  caution:"A calf that is swollen, warm, red, and tender on one side only is a possible blood clot — do not massage, get it assessed the same day."},
+soleus:{n:"Soleus",area:"foot",
+  loc:"Deeper and lower than the gastrocnemius, in the lower third of the calf either side of the Achilles.",
+  ref:"The HEEL, plus the back of the ankle and sometimes the sacrum. The single most missed cause of heel pain blamed on plantar fasciitis.",
+  how:"Calf on the opposite knee, thumbs either side of the Achilles working upward, or a ball with the knee bent (bending the knee takes the gastroc out of the way and exposes the soleus).",
+  dose:"60–90 s per spot, 2× a day.",
+  stretch:"Wall calf stretch with the knee BENT. 30 s, 3×.",
+  caution:"Same clot caution as the gastrocnemius."},
+tib_ant:{n:"Tibialis anterior",area:"foot",
+  loc:"The muscle just outside the shin bone, in the upper half of the shin.",
+  ref:"Front of the ankle and into the big toe. Feels like shin splints.",
+  how:"Kneel and place the shin muscle onto a ball or the edge of a roller, or press with the opposite knuckle while seated.",
+  dose:"60 s, 2× a day.",
+  stretch:"Kneel with the tops of the feet down and sit back gently. 30 s.",
+  caution:"If the front of the shin becomes tight, swollen, and numb after exertion and doesn't settle with rest, get it checked urgently (compartment syndrome)."},
+peroneal:{n:"Peroneals (fibularis)",area:"foot",
+  loc:"The outer lower leg, along the outside of the fibula from just below the knee to behind the outer ankle bone.",
+  ref:"Outer ankle and the outside of the foot. Common after an ankle sprain and a cause of repeat rolling.",
+  how:"Side-lying with a ball on the outer calf, or seated thumb pressure down the line.",
+  dose:"45–60 s per spot, 2× a day.",
+  stretch:"Sit and turn the sole of the foot inward and downward. 30 s.",
+  caution:"Just below the head of the fibula (the bump on the outer knee) a nerve runs superficially — press lightly there or skip that inch."},
+plantar_intrinsics:{n:"Foot arch muscles (quadratus plantae, flexor digitorum brevis)",area:"foot",
+  loc:"The sole of the foot, from the heel forward through the arch.",
+  ref:"Heel pain, arch pain, and pain under the ball of the foot.",
+  how:"Roll the sole slowly over a ball (or a frozen water bottle if it is inflamed), pausing on tender spots. Then pull the big toe back and massage the taut band in the arch.",
+  dose:"2 min per foot, 2× a day — the morning session matters most.",
+  stretch:"Toes-up calf stretch on a wall, plus a big-toe extension stretch held 30 s.",
+  caution:"Pain that is worst on the first steps in the morning and improves with walking is usually plantar fascia — combine this with the soleus work, which is often the real driver."},
+
+/* ---------- arm, elbow, hand ---------- */
+ecrb:{n:"Wrist extensors (ECRB / brachioradialis)",area:"arm",
+  loc:"The muscle bulk on the top-outer forearm, starting two to three finger widths BELOW the bony point of the outer elbow.",
+  ref:"The outer elbow point and along the back of the forearm into the back of the hand and thumb web — 'tennis elbow' pain.",
+  how:"Rest the forearm on a table, press with the opposite thumb into the muscle belly (not the bony point), and slowly open and close your fist while holding.",
+  dose:"45–60 s per spot, 3 spots, 2–3× a day.",
+  stretch:"Arm straight, palm down, bend the wrist down and turn it slightly inward. 30 s, 3×.",
+  caution:"Press the muscle belly, not the sore bony point itself. Tendon pain at the bone responds to graded loading — slow, heavy wrist extensions — more than to massage."},
+pronator:{n:"Pronator teres & wrist flexors",area:"arm",
+  loc:"The muscle bulk on the palm side of the forearm, starting just below the inner elbow bump.",
+  ref:"The inner elbow and down the palm side of the forearm into the wrist and fingers — 'golfer's elbow' pain. The pronator can also compress the median nerve.",
+  how:"Forearm palm-up on a table, opposite thumb pressing the belly below the inner elbow bump, while slowly turning the palm up and down.",
+  dose:"45–60 s per spot, 2× a day.",
+  stretch:"Arm straight, palm up, gently pull the fingers back and down. 30 s, 3×.",
+  caution:"A nerve runs between the heads of the pronator. Lighten up if pressing causes tingling into the hand."},
+triceps:{n:"Triceps",area:"arm",
+  loc:"Back of the upper arm.",
+  ref:"Back of the shoulder, the outer elbow, and down the back of the forearm — a hidden contributor to tennis elbow.",
+  how:"Press with the opposite hand while the arm is relaxed across the body, or lean the back of the arm into a ball on a wall.",
+  dose:"45 s per spot, 2× a day.",
+  stretch:"Arm overhead, bend the elbow, gently pull the elbow behind the head. 30 s.",
+  caution:"None significant."},
+thenar:{n:"Thenar / hand intrinsics",area:"arm",
+  loc:"The fleshy pad at the base of the thumb, and the webbing between the thumb and index finger.",
+  ref:"Thumb, thumb base and into the wrist — often blamed on the wrist joint or carpal tunnel.",
+  how:"Pincer the thumb pad and the web between the opposite thumb and index finger, squeezing and holding.",
+  dose:"30–45 s per spot, 2–3× a day.",
+  stretch:"Open the hand wide, then stretch the thumb back and out. 20 s.",
+  caution:"None significant."}
+};
+
+/* =====================================================================
+   PATTERNS — what the answers add up to. Each links to muscle targets.
+   ===================================================================== */
+const H = {
+lb_flexion:{n:"Flexion-sensitive low back",area:"lowback",
+  sum:"Bending forward, sitting, and getting out of a chair provoke it; arching back tends to ease it. This is the pattern of a disc-related or forward-bend-loaded low back.",
+  helps:["Prone press-ups / gentle backbends, several times a day, in small sets","Standing and walking breaks every 20–30 min","Sitting upright with a small lumbar roll","Hip hinge (bend at the hips, not the spine) for picking things up"],
+  avoid:["Long slouched sitting","Toe-touch and knees-to-chest stretches while it is sensitive","Sit-ups and crunches","Heavy lifting first thing in the morning"],
+  mus:["lumbar_es","multifidus","ql","glute_med","hamstring"]},
+lb_extension:{n:"Extension-sensitive low back",area:"lowback",
+  sum:"Arching back, standing, and walking provoke it; sitting or bending forward eases it. This is the pattern of the small back joints (facets) or a narrowed nerve channel.",
+  helps:["Knees-to-chest and child's pose","Sitting or leaning on a shopping trolley to walk further","Hip flexor stretching — tight hip flexors force the back into extension","Core work that keeps the pelvis neutral"],
+  avoid:["Standing still for long periods","Repeated backbends and overhead work","Sleeping face down without a pillow under the belly"],
+  mus:["psoas","ql","lumbar_es","glute_med","multifidus"]},
+lb_sij:{n:"Sacroiliac / pelvic pattern",area:"lowback",
+  sum:"Pain sits low and to one side, near the dimple above the buttock. Single-leg loading, rolling in bed, and getting in and out of a car aggravate it.",
+  helps:["Single-leg strength: bridges, step-ups, side-lying hip abduction","A supportive SI belt during flare-ups","Even weight-bearing — stop standing hitched on one hip"],
+  avoid:["Repeated end-range stretching of that side (it usually needs stability, not more range)","Crossing the legs for long periods"],
+  mus:["glute_med","ql","piriformis","glute_max","adductor"]},
+lb_myofascial:{n:"Myofascial low back (muscle-driven)",area:"lowback",
+  sum:"Movement tests were only moderately provocative, but pressing specific muscles reproduced your familiar pain. That points at trigger points rather than a joint or disc — the most treatable kind of back pain.",
+  helps:["Direct trigger point pressure on the muscles below","Heat before, gentle movement after","Regular short walks — this pattern hates stillness"],
+  avoid:["Complete rest","Aggressive deep-tissue work that leaves you sore for days"],
+  mus:["ql","glute_med","lumbar_es","psoas","glute_min"]},
+lb_neural:{n:"Nerve-involved leg pain (radicular)",area:"lowback",
+  sum:"Your leg symptoms extend below the knee and were provoked by nerve-tension positions (straight leg raise with ankle pull, or the slump test). That means a nerve root is being irritated, not just muscle.",
+  helps:["Nerve glides (flossing) — gentle, little and often, never pushed into pain","Finding and holding the position that centralises symptoms toward the back","Walking within tolerance","Trigger point work on nearby muscles is fine, but gently"],
+  avoid:["Deep sustained pressure along the nerve path in the buttock and back of the thigh","Aggressive hamstring stretching","Prolonged sitting"],
+  mus:["glute_min","piriformis","ql","lumbar_es"],
+  refer:"Get this reviewed if the leg is getting weaker, numbness is spreading, or symptoms persist beyond about 6 weeks."},
+hip_glute:{n:"Gluteal / lateral hip pattern",area:"hip",
+  sum:"Outer hip and buttock, tender to lie on, provoked by side-lying tests and by pressing the upper outer buttock. Very often mislabelled as 'sciatica' or 'bursitis'.",
+  helps:["Side-lying hip abduction and bridges — this tissue needs loading","A pillow between the knees at night","Trigger point work on the glute fan"],
+  avoid:["Sleeping directly on the painful side unsupported","Standing hitched on one hip","Deep IT band rolling — treat the muscles, not the strap"],
+  mus:["glute_med","glute_min","tfl","piriformis","ql"]},
+hip_deep:{n:"Deep buttock / piriformis pattern",area:"hip",
+  sum:"Deep buttock pain, worse with sitting, provoked by figure-4 and knee-to-opposite-shoulder positions, with tenderness in the mid-buttock.",
+  helps:["Sustained figure-4 stretching","Sit on a cushion with a cut-out or shift weight forward off the sitting bones","Glute strengthening once irritability settles"],
+  avoid:["Long sitting on hard surfaces","Digging aggressively into the buttock if it shoots down the leg"],
+  mus:["piriformis","glute_min","glute_max","hamstring"]},
+hip_joint:{n:"Hip joint pattern",area:"hip",
+  sum:"Groin pain, limited rotation, and provocation with knee-to-opposite-shoulder and log-roll tests. That points at the joint itself rather than the surrounding muscle.",
+  helps:["Range within comfort, daily","Isometric hip strengthening","Reducing deep squatting and end-range positions for now"],
+  avoid:["Forcing deep hip flexion and internal rotation","Aggressive stretching into the pinch"],
+  mus:["adductor","psoas","glute_min","tfl","rectus_fem"],
+  refer:"Groin pain with a hard block to rotation, or hip pain with a limp, is worth an in-person assessment and possibly imaging."},
+hip_flexor:{n:"Hip flexor / psoas pattern",area:"lowback",
+  sum:"Front of the hip and a vertical band of low back pain, worst standing up after sitting and after long standing. Tight, overworked hip flexors pulling on the lumbar spine.",
+  helps:["Half-kneeling hip flexor stretch, 3× a day","Glute activation — bridges and hip thrusts","Breaking up long sitting"],
+  avoid:["Long sitting without breaks","Sit-ups"],
+  mus:["psoas","rectus_fem","ql","lumbar_es"]},
+nk_facet:{n:"Cervical joint pattern",area:"neck",
+  sum:"Turning, arching, or the combined look-up-and-over position reproduced one-sided neck pain with a hard end feel. That is joint-driven neck pain.",
+  helps:["Gentle range within comfort, often","Chin tucks and deep neck flexor work","Heat before movement","Setting screens at eye height"],
+  avoid:["Forcing the blocked direction","Aggressive self-cracking of the neck"],
+  mus:["levator","suboccipital","upper_trap","splenius","multifidus"]},
+nk_myofascial:{n:"Neck & shoulder myofascial pattern",area:"neck",
+  sum:"Pressing the shoulder ridge, the shoulder blade corner, or the base of the skull reproduced your pain and sent it somewhere else. Classic trigger point referral — headaches from this pattern respond well to hands-on work.",
+  helps:["Trigger point pressure plus stretch, 2–3× a day","Screen and phone height changes","Regular movement breaks — this pattern is a posture-endurance problem"],
+  avoid:["Long static neck positions","Heavy shoulder bags on the painful side"],
+  mus:["upper_trap","levator","suboccipital","scalene","splenius","rhomboid"]},
+nk_neural:{n:"Nerve-involved arm pain (cervical)",area:"neck",
+  sum:"Arm symptoms were provoked by neck extension/rotation or by arm nerve-tension testing. A nerve root or the nerve bundle in the neck is being irritated.",
+  helps:["Nerve glides for the arm, gentle and frequent","Chin tucks and opening the chest","Sleeping with the arm supported, not overhead"],
+  avoid:["Deep pressure in the hollow above the collarbone","Sustained overhead work","Aggressive arm stretching"],
+  mus:["scalene","pec_minor","subscapularis","upper_trap"],
+  refer:"Persistent numbness or any loss of grip strength should be assessed in person."},
+nk_headache:{n:"Cervicogenic headache pattern",area:"neck",
+  sum:"Head pain that starts at the base of the skull or the neck and spreads forward, with tenderness at the occiput and upper neck. This kind of headache is driven by the neck and responds to neck treatment.",
+  helps:["Suboccipital release with balls, 2 min, daily","Chin tucks, 10 reps hourly","Hydration and sleep regularity"],
+  avoid:["Long phone-looking-down time","Sleeping with too many pillows"],
+  mus:["suboccipital","upper_trap","levator","scm","splenius"]},
+sh_cuff:{n:"Rotator cuff pattern",area:"shoulder",
+  sum:"Pain through the mid-range arc of raising the arm, provoked by the thumbs-down press test and by resisted positions. The cuff tendons are being loaded or irritated.",
+  helps:["Isometric holds (push into a wall, no movement) for pain relief","Graded strengthening in the pain-free range","Working below shoulder height for now"],
+  avoid:["Repeated overhead reaching","Pushing through sharp pain in the arc","Complete rest — the cuff needs load to recover"],
+  mus:["infraspinatus","supraspinatus","subscapularis","teres","deltoid"]},
+sh_impinge:{n:"Subacromial / shoulder-blade mechanics",area:"shoulder",
+  sum:"The pinching arc plus restriction reaching behind the back and across the body. Usually the shoulder blade isn't rotating out of the way — a tight front of the chest and a locked-down blade.",
+  helps:["Pec minor and pec major release, then doorway stretches","Shoulder blade setting: down and back, then raise the arm","Wall slides and serratus punches"],
+  avoid:["Overhead pressing while it pinches","Slouched desk posture, which pre-loads the pinch"],
+  mus:["pec_minor","pec_major","infraspinatus","subscapularis","serratus_ant","upper_trap"]},
+sh_frozen:{n:"Stiff / capsular shoulder pattern",area:"shoulder",
+  sum:"Loss of rotation — especially turning the arm outward and reaching up the back — with pain at the end of every direction, not just one. That points at the joint capsule rather than a tendon.",
+  helps:["Frequent gentle range in every direction — little and often beats hard and rare","Heat before, movement during, ice after if sore","Patience: this pattern runs in months, not weeks"],
+  avoid:["Forceful end-range stretching, which flares it","Immobilising the arm in a sling"],
+  mus:["subscapularis","infraspinatus","teres","pec_major","lat"],
+  refer:"Progressive loss of movement in all directions, particularly with diabetes, is worth confirming in person."},
+sh_ac:{n:"AC joint pattern",area:"shoulder",
+  sum:"Pain pinpointed on the top of the shoulder, worst reaching across the body and at the very top of the range.",
+  helps:["Avoiding cross-body loading for a few weeks","Isometric work in neutral"],
+  avoid:["Deep bench pressing and cross-body sleeping","Carrying bags on that shoulder"],
+  mus:["deltoid","upper_trap","pec_major","infraspinatus"]},
+mb_scapular:{n:"Interscapular / mid-back pattern",area:"midback",
+  sum:"Burning or aching between the shoulder blade and the spine, often with a stiff mid-back rotation. The spot that hurts is usually the referral zone, not the source.",
+  helps:["Thoracic extension over a rolled towel, 60–90 s","Rotation drills: seated twists and side-lying open books","Treating the scalenes and infraspinatus even though they aren't where it hurts"],
+  avoid:["Only massaging the sore spot between the blades — it comes back within the hour"],
+  mus:["scalene","infraspinatus","rhomboid","serratus_post_sup","lat","thoracic_es"]},
+mb_rib:{n:"Rib / breathing-related mid-back",area:"midback",
+  sum:"Pain that changes with a deep breath, cough, or twist. A rib joint or the muscles that move the ribs.",
+  helps:["Gentle rotation and side-bending","Breathing drills: wide, slow rib breaths","Serratus and thoracic release"],
+  avoid:["Holding your breath and guarding — that keeps it locked"],
+  mus:["serratus_ant","serratus_post_sup","thoracic_es","lat"],
+  refer:"Chest pain with breathlessness, sweating, or a sense of dread is an emergency — call for help rather than treating it as a rib."},
+kn_pfj:{n:"Kneecap (patellofemoral) pattern",area:"knee",
+  sum:"Front-of-knee pain, worse on stairs (especially going down), with squatting, and after long sitting with the knee bent.",
+  helps:["Quad and hip strengthening in the pain-free range","Reducing deep knee bend loads for now","Releasing the outer thigh, which drags the kneecap sideways"],
+  avoid:["Deep squats and lunges while it is irritable","Prolonged sitting with the knee bent"],
+  mus:["vastus_lat","vastus_med","rectus_fem","tfl","glute_med"]},
+kn_posterior:{n:"Back-of-knee pattern",area:"knee",
+  sum:"Pain behind the knee with straightening or on stairs down.",
+  helps:["Gentle calf and hamstring work","Range within comfort"],
+  avoid:["Digging deep into the back of the knee"],
+  mus:["gastroc","popliteus","hamstring"],
+  refer:"A soft swelling behind the knee, or a calf that is swollen, warm, and tender on one side, needs same-day medical assessment."},
+ft_plantar:{n:"Heel / plantar pattern",area:"foot",
+  sum:"Heel or arch pain, classically worst on the first steps in the morning or after sitting. The calf is nearly always part of it.",
+  helps:["Morning arch rolling BEFORE the first steps","Soleus (bent-knee) calf stretching, 3× a day","Graded calf raises to build tolerance"],
+  avoid:["Walking barefoot on hard floors during a flare","Ramping up walking distance quickly"],
+  mus:["soleus","gastroc","plantar_intrinsics","tib_ant"]},
+ft_ankle:{n:"Ankle / lower leg pattern",area:"foot",
+  sum:"Pain around the ankle with movement testing, often outer-sided, frequently a legacy of an old sprain.",
+  helps:["Balance work — single-leg stands, 30 s, several a day","Peroneal strengthening with a band","Ankle range drills"],
+  avoid:["Uneven ground until balance improves"],
+  mus:["peroneal","soleus","tib_ant","gastroc"]},
+el_lateral:{n:"Outer elbow (tennis elbow) pattern",area:"arm",
+  sum:"Pain at the outer elbow with gripping and resisted wrist extension. The tendon is the sore point but the muscle belly and even the neck often feed it.",
+  helps:["Slow heavy wrist extension work (3 s down, 3 s up) — the main proven treatment","Trigger point work on the forearm belly, not the bony point","Checking the neck and triceps, which refer here"],
+  avoid:["Repeated gripping at full stretch","Cortisone as a first resort — good short-term, worse long-term"],
+  mus:["ecrb","triceps","infraspinatus","scalene"]},
+el_medial:{n:"Inner elbow (golfer's elbow) pattern",area:"arm",
+  sum:"Pain at the inner elbow with gripping and resisted wrist flexion or turning the palm down.",
+  helps:["Slow heavy wrist flexion and forearm rotation work","Forearm flexor trigger point work"],
+  avoid:["Repeated gripping and twisting under load"],
+  mus:["pronator","triceps","scalene"]},
+hand_median:{n:"Hand nerve / carpal pattern",area:"arm",
+  sum:"Numbness, tingling, or night symptoms in the hand. Worth knowing: the nerve can be squeezed at the wrist, in the forearm, under the pec, or in the neck — check all four before assuming the wrist.",
+  helps:["A neutral wrist splint at night","Median nerve glides, gentle","Releasing pec minor, scalenes and the pronator — the upstream squeeze points"],
+  avoid:["Sleeping with the wrist curled or the arm overhead","Deep pressure directly on the wrist crease"],
+  mus:["pronator","pec_minor","scalene","thenar"],
+  refer:"Constant numbness, thumb-pad muscle wasting, or dropping objects should be assessed promptly."},
+jaw_tmj:{n:"Jaw / TMJ pattern",area:"jaw",
+  sum:"Jaw pain with opening, chewing, or clenching, with tenderness in the jaw and temple muscles. Frequently linked with neck trigger points and night grinding.",
+  helps:["Masseter and temporalis release","Tongue-on-palate resting posture, teeth apart","Treating the upper neck too — it feeds the jaw"],
+  avoid:["Chewing gum and hard foods during a flare","Wide yawning"],
+  mus:["masseter","temporalis","upper_trap","scm","suboccipital"]},
+general_myofascial:{n:"Widespread muscular tension",area:"general",
+  sum:"Several regions scored moderately with no single dominant mechanical pattern. That usually means load, sleep, stress, and inactivity are driving muscle tension across the board.",
+  helps:["Daily walking, building slowly","Sleep regularity — muscle pain amplifies badly on short sleep","Whole-body mobility rather than chasing one spot","Warm shower before the massage work below"],
+  avoid:["Hunting for the single 'broken' structure","Long periods of complete rest"],
+  mus:["upper_trap","thoracic_es","lumbar_es","glute_med","ql"]}
+};
+
+/* =====================================================================
+   TEST BANK
+   pos : which body positions the test works in  (sit / stand / supine / prone / side)
+   d   : depth — 1 core, 2 extended, 3 follow-up only (inserted by next())
+   ev  : evidence added when the score is HIGH        (weight x score/4)
+   evL : evidence added when the score is LOW         (weight x (4-score)/4)
+   next: adaptive rule — returns test ids to insert right now
+   cf  : this is a palpation test confirming a specific muscle
+   ===================================================================== */
+const ANY=['sit','stand','supine','prone','side'];
+const Q={};
+function def(id,o){o.id=id;Q[id]=o;return o}
+function defSide(id,o){                       // creates <id>_l and <id>_r
+  ['l','r'].forEach(s=>{
+    const w=s==='l'?'left':'right', W=s==='l'?'Left':'Right', c=JSON.parse(JSON.stringify({t:o.t,cue:o.cue,note:o.note||'',warn:o.warn||''}));
+    const n=Object.assign({},o,{
+      t:c.t.replace(/\{S\}/g,W).replace(/\{s\}/g,w),
+      cue:c.cue.replace(/\{S\}/g,W).replace(/\{s\}/g,w),
+      note:c.note?c.note.replace(/\{s\}/g,w).replace(/\{S\}/g,W):'',
+      warn:c.warn||'', side:s.toUpperCase(), base:id});
+    if(o.cf) n.cf=o.cf;
+    if(o.next) n.next=(sc,S)=>o.next(sc,S,s);
+    def(id+'_'+s,n);
+  });
+}
+const sideOf=id=>Q[id]&&Q[id].side?Q[id].side:null;
+
+/* ---------- 0. red flag screen ---------- */
+def('rf_bladder',{t:"Bladder or bowel changes",reg:'flag',pos:ANY,d:1,
+  cue:"Since this pain started, have you had any <b>new trouble controlling your bladder or bowel</b>, or numbness in the saddle area (groin, inner thighs, between the legs)?",
+  lbl:['Not at all','Definitely yes'],flag:'cauda'});
+def('rf_weak',{t:"Progressive weakness",reg:'flag',pos:ANY,d:1,
+  cue:"Is a limb getting <b>genuinely weaker</b> — dropping things, foot slapping when you walk, or a leg giving way? (Weakness from pain doesn't count.)",
+  lbl:['Not at all','Definitely yes'],flag:'weak'});
+def('rf_systemic',{t:"Unwell with it",reg:'flag',pos:ANY,d:1,
+  cue:"Any <b>fever, night sweats, or unexplained weight loss</b> alongside this pain?",
+  lbl:['Not at all','Definitely yes'],flag:'systemic'});
+def('rf_trauma',{t:"Significant injury",reg:'flag',pos:ANY,d:1,
+  cue:"Did this start with a <b>significant impact</b> — a fall, a crash, a heavy landing?",
+  lbl:['No, it came on gradually','Yes, a big one'],flag:'trauma'});
+def('rf_night',{t:"Night pain",reg:'flag',pos:ANY,d:1,
+  cue:"How much does the pain <b>wake you at night</b> and stay bad no matter what position you try?",
+  lbl:['Never','Every night, unrelieved'],flag:'night',ev:{}});
+
+/* ---------- 1. body scan ---------- */
+const SCAN=[
+ ['scan_neck','neck',"Neck, head and jaw","Sitting or lying comfortably, rate your <b>neck and head</b> right now — pain, stiffness, or headache."],
+ ['scan_shoulder','shoulder',"Shoulders","Rate your <b>shoulders</b> — either side, at rest right now."],
+ ['scan_midback','midback',"Upper and mid back","Rate the area <b>between and around your shoulder blades</b>."],
+ ['scan_lowback','lowback',"Low back","Rate your <b>low back</b> — belt line and below, across the back."],
+ ['scan_hip','hip',"Hips, buttocks, groin","Rate your <b>hips, buttocks and groin</b>."],
+ ['scan_knee','knee',"Knees and thighs","Rate your <b>knees and thighs</b>."],
+ ['scan_foot','foot',"Lower legs, ankles, feet","Rate your <b>calves, ankles and feet</b>."],
+ ['scan_arm','arm',"Arms, elbows, hands","Rate your <b>arms, elbows and hands</b>."]
+];
+SCAN.forEach(([id,reg,t,cue])=>def(id,{t,cue,reg:'scan',target:reg,pos:ANY,d:1,scan:true}));
+
+/* ---------- 2. context ---------- */
+def('cx_rest',{t:"Pain at complete rest",reg:'cx',pos:ANY,d:1,
+  cue:"Right now, completely still and supported, how much pain is there?",
+  ev:{},evL:{}});
+def('cx_sitting',{t:"After sitting",reg:'cx',pos:ANY,d:1,
+  cue:"How much worse is it after <b>20+ minutes of sitting</b>, or when you first stand up from a chair?",
+  lbl:['No worse','Much worse'],
+  ev:{lb_flexion:1,hip_deep:.6,kn_pfj:.4},evL:{lb_extension:.5}});
+def('cx_standing',{t:"After standing or walking",reg:'cx',pos:ANY,d:1,
+  cue:"How much worse is it after <b>10+ minutes of standing or walking</b>?",
+  lbl:['No worse','Much worse'],
+  ev:{lb_extension:1,hip_glute:.5,lb_sij:.4},evL:{lb_flexion:.4}});
+def('cx_morning',{t:"First hour of the day",reg:'cx',pos:ANY,d:1,
+  cue:"How stiff or sore are you in the <b>first hour after waking</b>, before you get moving?",
+  lbl:['Not at all','Severely'],
+  ev:{lb_flexion:.5,ft_plantar:.6,general_myofascial:.4}});
+def('cx_spread',{t:"Does it travel",reg:'cx',pos:ANY,d:1,
+  cue:"How far does the pain <b>travel away</b> from where it starts — down an arm or a leg, or up into the head?",
+  lbl:['Stays put','Travels far (past knee/elbow)'],
+  ev:{lb_neural:.8,nk_neural:.6},
+  next:(s)=>s>=2?['cx_numb','cx_quality']:[]});
+def('cx_numb',{t:"Numbness or tingling",reg:'cx',pos:ANY,d:3,
+  cue:"How much <b>numbness, tingling or pins-and-needles</b> comes with it?",
+  lbl:['None','Constant'],
+  ev:{lb_neural:1,nk_neural:1,hand_median:.6},evL:{lb_myofascial:.5,hip_glute:.5}});
+def('cx_quality',{t:"What it feels like",reg:'cx',pos:ANY,d:3,
+  cue:"How <b>electric, burning or shooting</b> is the travelling pain? (0 = a deep dull ache, 4 = sharp electric shocks)",
+  lbl:['Deep dull ache','Electric / shooting'],
+  ev:{lb_neural:1,nk_neural:.8},evL:{hip_glute:.8,lb_myofascial:.8,nk_myofascial:.6}});
+def('cx_cough',{t:"Cough or sneeze",reg:'cx',pos:ANY,d:2,
+  cue:"How much does a <b>cough, sneeze, or bearing down</b> spike the pain?",
+  lbl:['Not at all','Sharply'],
+  ev:{lb_flexion:.7,lb_neural:.6,mb_rib:.5}});
+
+/* ---------- 3. LOW BACK ---------- */
+def('lb_flex_sit',{t:"Bend forward",reg:'lowback',pos:['sit','stand'],d:1,
+  cue:"Sitting tall, feet flat. <b>Slowly roll down</b> — chin to chest, then curl forward and reach toward the floor. Go to your comfortable limit and hold 3 seconds.",
+  note:"Rate the pain at the bottom of the movement, not on the way back up.",
+  ev:{lb_flexion:1,lb_myofascial:.3},evL:{lb_extension:.6},
+  next:s=>s>=2?['lb_flex_rep']:[]});
+def('lb_flex_rep',{t:"Repeat the forward bend",reg:'lowback',pos:['sit','stand'],d:3,
+  cue:"Do that forward bend <b>8 more times</b>, slowly and smoothly. Then rate how it feels compared with before you started.",
+  lbl:['Clearly better','Clearly worse'],
+  ev:{lb_flexion:1.2},evL:{lb_extension:.9}});
+def('lb_ext_sit',{t:"Arch backward",reg:'lowback',pos:['sit','stand'],d:1,
+  cue:"Hands on your low back, thumbs forward. <b>Arch backward</b> and look up at the ceiling. Hold 3 seconds.",
+  ev:{lb_extension:1,lb_sij:.3},evL:{lb_flexion:.6},
+  next:s=>s>=2?['lb_ext_side']:[]});
+def('lb_ext_side',{t:"Arch and lean",reg:'lowback',pos:['sit','stand'],d:3,
+  cue:"Arch backward again, but this time <b>lean toward your painful side</b> as you arch (the quadrant position). Hold 3 seconds.",
+  note:"This closes down the small joints and the nerve exit on one side.",
+  ev:{lb_extension:1.2,lb_neural:.4}});
+defSide('lb_rot_sit',{t:"Twist to the {s}",reg:'lowback',pos:['sit'],d:1,
+  cue:"Sit tall with feet flat and knees still. <b>Twist your whole trunk to the {s}</b>, hands reaching for the back of the chair. Hold 3 seconds at your limit.",
+  ev:{lb_sij:.5,mb_scapular:.3,lb_extension:.4}});
+defSide('lb_sb_sit',{t:"Side bend {s}",reg:'lowback',pos:['sit','stand'],d:2,
+  cue:"Sitting or standing tall, slide your <b>{s} hand down the outside of your {s} leg</b>, bending sideways. Hold 3 seconds.",
+  note:"Note whether it hurts on the side you're bending toward (joint-ish) or on the stretched opposite side (muscle-ish).",
+  ev:{lb_extension:.5,lb_myofascial:.5}});
+defSide('lb_slump',{t:"Slump test — {s} leg",reg:'lowback',pos:['sit'],d:2,
+  cue:"Sit on the edge of your seat. <b>Slouch completely</b>, round the whole spine, then <b>tuck your chin to your chest</b>. Now slowly <b>straighten your {s} knee</b> and pull your toes up toward you.",
+  note:"You want to know whether this reproduces YOUR pain — pulling behind the thigh alone is normal tightness.",
+  warn:"Come out of it if you get sharp shooting pain. Don't hold it long.",
+  ev:{lb_neural:1.4},evL:{lb_myofascial:.5},
+  next:(s,S,side)=>s>=2?['lb_slump_chin_'+side]:[]});
+defSide('lb_slump_chin',{t:"Slump — lift the chin",reg:'lowback',pos:['sit'],d:3,
+  cue:"Hold that same slumped position with the {s} knee straight — now <b>lift your chin and look up</b>, keeping everything else identical.",
+  lbl:['Much less pain','No change / worse'],
+  note:"If lifting the chin clearly eases the leg symptoms, the nerve is being tensioned rather than the muscle stretched. That is a meaningful finding.",
+  ev:{lb_myofascial:.6},evL:{lb_neural:1.4}});
+def('lb_situp',{t:"Stand up from the chair",reg:'lowback',pos:['sit'],d:1,
+  cue:"<b>Stand up from your chair</b> and take five steps. Rate the first two seconds of standing.",
+  ev:{hip_flexor:.9,lb_flexion:.6,lb_sij:.5}});
+defSide('lb_knee_chest',{t:"{S} knee to chest",reg:'lowback',pos:['supine'],d:1,
+  cue:"On your back, knees bent. Pull your <b>{s} knee toward your chest</b> with both hands, keeping the other foot flat. Hold 5 seconds.",
+  ev:{hip_deep:.6,hip_joint:.5},evL:{lb_extension:.4}});
+def('lb_double_knee',{t:"Both knees to chest",reg:'lowback',pos:['supine'],d:1,
+  cue:"Pull <b>both knees to your chest</b> and hold 5 seconds. Rate the low back.",
+  ev:{lb_flexion:.9},evL:{lb_extension:.8},
+  next:s=>s<=1?['lb_flex_rep_sup']:[]});
+def('lb_flex_rep_sup',{t:"Repeat knees to chest",reg:'lowback',pos:['supine'],d:3,
+  cue:"Do knees-to-chest <b>10 times slowly</b>. Rate how you feel now compared with before.",
+  lbl:['Clearly better','Clearly worse'],
+  ev:{lb_flexion:1},evL:{lb_extension:1}});
+defSide('lb_slr',{t:"Straight leg raise — {s}",reg:'lowback',pos:['supine'],d:1,
+  cue:"On your back, both legs straight. Keeping the knee locked, <b>lift your {s} leg</b> toward the ceiling until you feel a firm limit. Hold 3 seconds.",
+  note:"Note the height you reach, and whether it pulls behind the thigh or reproduces your real pain.",
+  ev:{lb_neural:1,hamstring_tight:.3},
+  next:(s,S,side)=>s>=2?['lb_slr_df_'+side]:[]});
+defSide('lb_slr_df',{t:"Leg raise + ankle pull",reg:'lowback',pos:['supine'],d:3,
+  cue:"Lift the {s} leg again, but stop <b>just before</b> the point that hurt. Hold it there and now <b>pull your toes up toward your shin</b>.",
+  note:"Adding the ankle only stretches the nerve, not the hamstring.",
+  ev:{lb_neural:1.5},evL:{lb_myofascial:.6,hip_glute:.5}});
+defSide('lb_roll',{t:"Knees roll {s}",reg:'lowback',pos:['supine'],d:1,
+  cue:"Knees bent, feet flat, arms out. <b>Let both knees fall slowly to the {s}</b>, keeping shoulders down. Hold 5 seconds.",
+  ev:{lb_sij:.7,mb_rib:.3,lb_myofascial:.4}});
+def('lb_bridge',{t:"Bridge",reg:'lowback',pos:['supine'],d:2,
+  cue:"Knees bent, feet flat. Squeeze your buttocks and <b>lift your hips</b> off the surface. Hold 5 seconds.",
+  ev:{lb_extension:.6,lb_sij:.6,hip_glute:.4}});
+def('lb_pressup',{t:"Press-up (backbend)",reg:'lowback',pos:['prone'],d:1,
+  cue:"Lie face down. Hands under your shoulders. <b>Push your chest up</b>, letting your hips and low back stay heavy and relaxed. Come up only as far as is comfortable. Hold 3 seconds, then lower.",
+  ev:{lb_extension:1},evL:{lb_flexion:.7},
+  next:s=>['lb_pressup_rep']});
+def('lb_pressup_rep',{t:"Ten press-ups",reg:'lowback',pos:['prone'],d:3,
+  cue:"Do <b>10 slow press-ups</b>, pausing 2 seconds at the top of each. Then rate how your back and leg feel compared with before you started.",
+  lbl:['Clearly better','Clearly worse'],
+  note:"If leg pain moves UP toward your back — even if the back pain rises a bit — that is a good sign, and counts as 'better'.",
+  ev:{lb_extension:1.3,lb_neural:.3},evL:{lb_flexion:1.4}});
+defSide('lb_prone_ext',{t:"Lift the {s} leg",reg:'lowback',pos:['prone'],d:2,
+  cue:"Face down, legs straight. <b>Lift your {s} leg</b> a few inches, keeping the knee straight and the hips down. Hold 5 seconds.",
+  ev:{lb_extension:.7,lb_sij:.6,hip_glute:.4}});
+defSide('lb_prone_kneebend',{t:"Bend the {s} knee",reg:'lowback',pos:['prone'],d:2,
+  cue:"Face down. <b>Bend your {s} heel toward your buttock</b> as far as comfortable. Hold 5 seconds.",
+  note:"Front-of-thigh pull is the quad. Low back or front-of-thigh pain here can be the femoral nerve.",
+  ev:{hip_flexor:.8,lb_neural:.5}});
+def('lb_palp_es',{t:"Press the spinal muscles",reg:'lowback',pos:ANY,d:1,cf:'lumbar_es',
+  cue:"Find the <b>two firm ropes running vertically either side of your spine</b> at belt level. Press your thumbs into them (not onto the bony spine) and hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{lb_myofascial:.8}});
+defSide('lb_palp_ql',{t:"Press the {s} flank",reg:'lowback',pos:ANY,d:1,cf:'ql',
+  cue:"On your <b>{s} side</b>, find the soft gap <b>between your lowest rib and the top of your pelvis</b>, about three fingers out from the spine. Press in firmly and hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  note:"This is the quadratus lumborum — the single most common source of one-sided low back pain.",
+  warn:"Firm muscular pressure only. Stop for deep sickening pain or pain going from flank to groin.",
+  ev:{lb_myofascial:1,lb_sij:.4},
+  next:(s,S,side)=>s>=2?['lb_palp_ql_ref_'+side]:[]});
+defSide('lb_palp_ql_ref',{t:"Did it spread?",reg:'lowback',pos:ANY,d:3,spread:'ql',
+  cue:"Keep pressing that {s} spot. How much does the pain <b>spread somewhere else</b> — into the pelvic rim, buttock, or hip?",
+  lbl:['Stays under my thumb','Spreads strongly'],
+  ev:{lb_myofascial:1.2}});
+def('lb_palp_psoas',{t:"Press the front hip bone hollow",reg:'lowback',pos:['supine'],d:2,cf:'psoas',
+  cue:"On your back, knees bent. Find the <b>bony point at the front of your pelvis</b>, slide your fingertips just <b>inside</b> it, and press gently toward the inside of the pelvic bowl. Hold 10 seconds, breathing out as you sink.",
+  lbl:['Not tender','Very tender'],
+  warn:"Stay just inside the hip bone. Never press on anything pulsing. Skip this if you are pregnant, have had abdominal surgery recently, or have any abdominal condition.",
+  ev:{hip_flexor:1}});
+
+/* ---------- 4. HIP / BUTTOCK ---------- */
+defSide('hip_fig4_sit',{t:"Figure-4 — {s}",reg:'hip',pos:['sit'],d:1,
+  cue:"Sitting, cross your <b>{s} ankle over the opposite knee</b> so the {s} knee falls outward. Sit tall, then lean your chest forward over your legs. Hold 5 seconds.",
+  ev:{hip_deep:1,hip_glute:.5,lb_sij:.5,hip_joint:.4}});
+defSide('hip_faber',{t:"Knee out — {s}",reg:'hip',pos:['supine'],d:1,
+  cue:"On your back, place your <b>{s} heel on the opposite knee</b> and let the {s} knee <b>drop out toward the surface</b>. Let gravity do it. Hold 5 seconds.",
+  note:"Note whether it pinches in the groin, aches in the buttock, or pulls in the inner thigh.",
+  ev:{hip_joint:.8,lb_sij:.7,hip_deep:.5}});
+defSide('hip_fadir',{t:"Knee to opposite shoulder — {s}",reg:'hip',pos:['supine'],d:1,
+  cue:"On your back, pull your <b>{s} knee up and across toward your opposite shoulder</b>. Hold 5 seconds.",
+  ev:{hip_deep:1,hip_joint:.9},
+  next:(s,S,side)=>s>=3?['hip_groin_'+side]:[]});
+defSide('hip_groin',{t:"Where exactly?",reg:'hip',pos:ANY,d:3,
+  cue:"In that {s} position, how much of the pain was <b>deep in the front groin crease</b> (as opposed to in the buttock behind)?",
+  lbl:['All buttock','All deep groin'],
+  ev:{hip_joint:1.3},evL:{hip_deep:1.1,hip_glute:.6}});
+defSide('hip_logroll',{t:"Roll the {s} leg",reg:'hip',pos:['supine'],d:2,
+  cue:"Legs straight and relaxed. <b>Roll your {s} leg in and out</b> like a rolling pin — foot turning toward the other foot, then away. Keep everything else relaxed. 5 slow rolls.",
+  note:"This moves the hip joint only, with no muscle work — pain here points strongly at the joint itself.",
+  ev:{hip_joint:1.4}});
+defSide('hip_abd_side',{t:"Lift the top leg — {s} up",reg:'hip',pos:['side'],d:1,
+  cue:"Lie on your <b>opposite side</b> with the {s} leg on top. Keeping it straight and slightly behind you, <b>lift it toward the ceiling</b> and hold 10 seconds.",
+  ev:{hip_glute:1.1,lb_sij:.5}});
+defSide('hip_lie_on',{t:"Lie on the {s} hip",reg:'hip',pos:['side'],d:2,
+  cue:"Roll onto your <b>{s} side</b> and let your weight settle onto that hip for 15 seconds.",
+  lbl:['Comfortable','Can\'t tolerate it'],
+  ev:{hip_glute:1.2}});
+def('hip_butterfly',{t:"Knees apart (groin)",reg:'hip',pos:['supine'],d:2,
+  cue:"On your back, put the <b>soles of your feet together</b> and let both knees fall out. Hold 10 seconds.",
+  ev:{hip_joint:.5,hip_deep:.3}});
+defSide('hip_palp_gmed',{t:"Press the {s} outer hip",reg:'hip',pos:ANY,d:1,cf:'glute_med',
+  cue:"Put your hand on your <b>{s} side pocket</b>, then slide up and back to the fleshy area between the top rim of the pelvis and the bony point of the hip. Press firmly and hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{hip_glute:1.1,lb_myofascial:.5},
+  next:(s,S,side)=>s>=2?['hip_palp_gmed_ref_'+side]:[]});
+defSide('hip_palp_gmed_ref',{t:"Did it spread?",reg:'hip',pos:ANY,d:3,spread:'glute_med',
+  cue:"Keep pressing that {s} spot. How much does it <b>send pain elsewhere</b> — into the low back, sacrum, or down the leg?",
+  lbl:['Stays local','Spreads strongly'],
+  ev:{hip_glute:1.2,lb_myofascial:.6}});
+defSide('hip_palp_piri',{t:"Press the {s} mid-buttock",reg:'hip',pos:ANY,d:1,cf:'piriformis',
+  cue:"On the <b>{s} side</b>, find the midpoint between your tailbone and the bony point of your hip. Press deep into the middle of the buttock and hold 10 seconds. (Sitting on a ball works well.)",
+  lbl:['Not tender','Very tender'],
+  ev:{hip_deep:1.1},
+  next:(s,S,side)=>s>=2?['hip_palp_piri_ref_'+side]:[]});
+defSide('hip_palp_piri_ref',{t:"Did it shoot?",reg:'hip',pos:ANY,d:3,spread:'piriformis',
+  cue:"While pressing that {s} spot — how much does it send symptoms <b>down the back of the leg</b>?",
+  lbl:['Not at all','Shoots down the leg'],
+  ev:{hip_deep:1,lb_neural:.5}});
+defSide('hip_palp_gmin',{t:"Press deeper — {s} hip",reg:'hip',pos:ANY,d:2,cf:'glute_min',
+  cue:"Same {s} outer-hip area, but sink <b>deeper and slower</b>, angling toward the hip joint. Hold 15 seconds and wait for the tissue to give.",
+  lbl:['Not tender','Very tender'],
+  note:"If this reproduces pain running down the outside of your leg, you've found the great sciatica impostor.",
+  ev:{hip_glute:1.2}});
+def('hip_sit_hard',{t:"Sitting on a hard seat",reg:'hip',pos:ANY,d:2,
+  cue:"How much worse is the buttock pain when you <b>sit on a hard surface</b> for a few minutes?",
+  lbl:['No worse','Can\'t do it'],
+  ev:{hip_deep:1,hamstring_origin:.5}});
+
+/* ---------- 5. NECK ---------- */
+def('nk_flex',{t:"Chin to chest",reg:'neck',pos:ANY,d:1,
+  cue:"Slowly <b>drop your chin toward your chest</b> as far as it goes. Hold 3 seconds.",
+  ev:{nk_myofascial:.6,nk_facet:.4}});
+def('nk_ext',{t:"Look up",reg:'neck',pos:['sit','stand'],d:1,
+  cue:"Slowly <b>tip your head back and look up</b> at the ceiling. Hold 3 seconds.",
+  ev:{nk_facet:.9,nk_neural:.4}});
+defSide('nk_rot',{t:"Turn {s}",reg:'neck',pos:ANY,d:1,
+  cue:"Keeping your shoulders still, <b>turn your head to the {s}</b> as far as it goes, as if looking over your shoulder. Hold 3 seconds.",
+  note:"Note whether you're stopped by pain or by a hard block.",
+  ev:{nk_facet:.9,nk_myofascial:.5}});
+defSide('nk_sb',{t:"Ear to {s} shoulder",reg:'neck',pos:ANY,d:1,
+  cue:"Keeping your nose forward, <b>tip your {s} ear toward your {s} shoulder</b>. Hold 3 seconds.",
+  note:"Pain on the side you're bending toward suggests joint; a pull on the opposite side is muscle.",
+  ev:{nk_facet:.7,nk_myofascial:.6}});
+defSide('nk_quadrant',{t:"Look up and over — {s}",reg:'neck',pos:['sit','stand'],d:2,
+  cue:"<b>Turn your head to the {s}, then tip it back</b> and look up and over that shoulder. Hold 5 seconds. Rest your hand on your head for a little extra weight if it's easy.",
+  warn:"Stop immediately for dizziness, visual change, or symptoms into the arm that don't settle within a minute.",
+  ev:{nk_facet:1.2,nk_neural:.9},
+  next:(s,S,side)=>s>=2?['nk_quadrant_arm_'+side]:[]});
+defSide('nk_quadrant_arm',{t:"Into the arm?",reg:'neck',pos:ANY,d:3,
+  cue:"In that {s} position, how much did the symptoms travel <b>into your arm or hand</b> (rather than staying in your neck)?",
+  lbl:['Stayed in the neck','Went right down the arm'],
+  ev:{nk_neural:1.5},evL:{nk_facet:1,nk_myofascial:.6}});
+def('nk_retract',{t:"Chin tuck",reg:'neck',pos:ANY,d:1,
+  cue:"Without tipping your head, <b>slide your chin straight back</b> — making a double chin. Hold 5 seconds, then repeat 5 times.",
+  lbl:['Better after / no pain','Clearly worse'],
+  note:"If repeating this eases neck or arm symptoms, it becomes one of your daily exercises.",
+  ev:{nk_facet:.5},evL:{nk_myofascial:.5,nk_headache:.4}});
+defSide('nk_median',{t:"Arm nerve tension — {s}",reg:'neck',pos:ANY,d:2,
+  cue:"Take your <b>{s} arm out to the side</b> at shoulder height, palm up. <b>Bend your wrist back</b> so the fingers point down, then straighten the elbow fully. Now <b>tip your head away</b> to the other side.",
+  warn:"Gentle. Come out of it as soon as you know the answer.",
+  ev:{nk_neural:1.4,hand_median:.7},evL:{nk_myofascial:.4}});
+defSide('nk_palp_trap',{t:"Squeeze the {s} shoulder ridge",reg:'neck',pos:ANY,d:1,cf:'upper_trap',
+  cue:"Reach across with the opposite hand and <b>pinch the thick ridge between your {s} neck and shoulder</b> — take the whole band between thumb and fingers and squeeze. Hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{nk_myofascial:1},
+  next:(s,S,side)=>s>=2?['nk_palp_trap_ref_'+side]:[]});
+defSide('nk_palp_trap_ref',{t:"Did it go to your head?",reg:'neck',pos:ANY,d:3,spread:'upper_trap',
+  cue:"Keep squeezing that {s} band. How much does it send sensation <b>up the neck, behind the ear, or into the temple / behind the eye</b>?",
+  lbl:['Not at all','Strongly — that\'s my headache'],
+  ev:{nk_myofascial:1.2,nk_headache:1.3}});
+defSide('nk_palp_lev',{t:"Press the {s} blade corner",reg:'neck',pos:ANY,d:1,cf:'levator',
+  cue:"Find the <b>top inner corner of your {s} shoulder blade</b>. Press just above it, angling into the bone. Turning your head away from that side makes it easier to reach. Hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{nk_myofascial:1,nk_facet:.4}});
+def('nk_palp_subocc',{t:"Press the base of your skull",reg:'neck',pos:ANY,d:1,cf:'suboccipital',
+  cue:"Run your thumbs up the back of your neck until you hit the <b>shelf of bone at the base of your skull</b>. Press up and in, about an inch either side of the middle. Hold 15 seconds.",
+  lbl:['Not tender','Very tender'],
+  warn:"Stop for dizziness or visual change.",
+  ev:{nk_headache:1.2,nk_myofascial:.8}});
+defSide('nk_palp_scalene',{t:"Press above the {s} collarbone",reg:'neck',pos:ANY,d:2,cf:'scalene',
+  cue:"In the <b>hollow just above your {s} collarbone</b>, press <b>very gently</b> with fingertips and hold 8 seconds.",
+  lbl:['Not tender','Very tender'],
+  warn:"Feather-light. The nerves and artery for the whole arm run here. Never press hard, and stop if you get shooting or tingling.",
+  note:"Referral from here into the arm and the inner shoulder blade is the top impostor of a pinched nerve.",
+  ev:{nk_myofascial:.9,nk_neural:.5,mb_scapular:.8}});
+def('nk_headlift',{t:"Lift your head",reg:'neck',pos:['supine'],d:2,
+  cue:"On your back, no pillow. <b>Tuck your chin, then lift your head</b> an inch off the surface and hold as long as you can, up to 10 seconds.",
+  lbl:['Easy, no pain','Can\'t hold it / painful'],
+  note:"Struggling here means the deep neck muscles have lost endurance — that's a training target, not damage.",
+  ev:{nk_myofascial:.7,nk_facet:.4}});
+
+/* ---------- 6. SHOULDER ---------- */
+defSide('sh_flex',{t:"Reach {s} arm overhead",reg:'shoulder',pos:ANY,d:1,
+  cue:"Raise your <b>{s} arm forward and up overhead</b>, thumb leading, as far as it goes. Hold 3 seconds at the top.",
+  ev:{sh_impinge:.7,sh_frozen:.6,sh_cuff:.5}});
+defSide('sh_arc',{t:"{S} arm out to the side",reg:'shoulder',pos:ANY,d:1,
+  cue:"Raise your <b>{s} arm out to the side</b> slowly, all the way up. Rate the pain in the <b>middle of the arc</b> — roughly shoulder height to just above.",
+  note:"A painful middle with a comfortable top and bottom is the classic pinching arc.",
+  ev:{sh_impinge:1.1,sh_cuff:.8},
+  next:(s,S,side)=>s>=2?['sh_arc_top_'+side]:[]});
+defSide('sh_arc_top',{t:"The very top",reg:'shoulder',pos:ANY,d:3,
+  cue:"Take the {s} arm all the way up and press it slightly further at the <b>very top</b>. How much pain right at the top, on the point of the shoulder?",
+  ev:{sh_ac:1.3},evL:{sh_impinge:.6}});
+defSide('sh_emptycan',{t:"Thumb-down press — {s}",reg:'shoulder',pos:ANY,d:1,
+  cue:"Put your <b>{s} arm out at shoulder height, halfway between front and side, thumb pointing down</b> like emptying a can. Have someone press down, or push up against your other hand for 5 seconds.",
+  ev:{sh_cuff:1.3}});
+defSide('sh_er',{t:"Hand behind head — {s}",reg:'shoulder',pos:ANY,d:1,
+  cue:"Reach your <b>{s} hand behind your head</b> and try to touch the opposite shoulder blade, elbow wide.",
+  lbl:['Easy, no pain','Can\'t get there'],
+  ev:{sh_frozen:1,sh_cuff:.5,sh_impinge:.4}});
+defSide('sh_ir',{t:"Hand up your back — {s}",reg:'shoulder',pos:ANY,d:1,
+  cue:"Reach your <b>{s} hand behind your back</b> and slide it up your spine as far as it goes.",
+  lbl:['Easy, no pain','Can\'t get there'],
+  note:"Compare the two sides — a big difference matters more than the absolute height.",
+  ev:{sh_frozen:1.1,sh_impinge:.6}});
+defSide('sh_cross',{t:"Cross-body reach — {s}",reg:'shoulder',pos:ANY,d:1,
+  cue:"Bring your <b>{s} arm straight across your chest</b> and pull it in with the other hand. Hold 5 seconds.",
+  ev:{sh_ac:1,sh_impinge:.5}});
+defSide('sh_load',{t:"Hold a weight — {s}",reg:'shoulder',pos:ANY,d:2,
+  cue:"Hold a full water bottle or a bag of sugar in your <b>{s} hand</b>, arm straight out in front at shoulder height, for 15 seconds.",
+  lbl:['Easy','Can\'t hold it'],
+  ev:{sh_cuff:1.1,sh_impinge:.5}});
+defSide('sh_er90',{t:"Rotate out — {s}",reg:'shoulder',pos:['supine'],d:2,
+  cue:"On your back, <b>{s} arm out to the side, elbow bent to 90°</b>, hand pointing at the ceiling. Let the hand rotate <b>back toward the floor behind you</b>. Let gravity take it.",
+  lbl:['Full range, no pain','Barely moves / painful'],
+  ev:{sh_frozen:1.3,sh_cuff:.5}});
+defSide('sh_palp_infra',{t:"Press the {s} shoulder blade",reg:'shoulder',pos:ANY,d:1,cf:'infraspinatus',
+  cue:"Reach across (or lean on a ball) to the <b>flat area of your {s} shoulder blade, below the horizontal ridge</b>. Press firmly and hold 15 seconds, hunting for the tenderest spot.",
+  lbl:['Not tender','Very tender'],
+  ev:{sh_cuff:.9,sh_impinge:.6},
+  next:(s,S,side)=>s>=2?['sh_palp_infra_ref_'+side]:[]});
+defSide('sh_palp_infra_ref',{t:"Felt in front?",reg:'shoulder',pos:ANY,d:3,spread:'infraspinatus',
+  cue:"Keep pressing that spot on the back of the {s} blade. How much do you feel it <b>deep in the FRONT of the shoulder</b>, or down the arm?",
+  lbl:['Not at all','Strongly — that\'s my pain'],
+  note:"Front-of-shoulder pain coming from a spot on the back of the blade is the single most useful finding in shoulder trigger point work.",
+  ev:{sh_cuff:1,sh_impinge:.8}});
+defSide('sh_palp_pecminor',{t:"Press under the {s} collarbone",reg:'shoulder',pos:ANY,d:2,cf:'pec_minor',
+  cue:"Find the <b>bony bump just below the outer end of your {s} collarbone</b>, at the front of the shoulder. Press down and slightly inward, under the chest muscle, and hold 10 seconds with the arm relaxed.",
+  lbl:['Not tender','Very tender'],
+  warn:"If you get tingling into the hand, lighten the pressure or move slightly off the spot.",
+  ev:{sh_impinge:1,nk_neural:.5,hand_median:.5}});
+defSide('sh_palp_subscap',{t:"Press inside the {s} armpit",reg:'shoulder',pos:ANY,d:2,cf:'subscapularis',
+  cue:"Let your <b>{s} arm hang</b>. With the opposite hand, reach into the armpit and curl your fingers around onto the <b>back wall</b> — the front face of the shoulder blade. Press gently and hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  warn:"Back wall of the armpit only. Come off immediately for tingling or a pulse.",
+  ev:{sh_frozen:1.1,sh_impinge:.5}});
+
+/* ---------- 7. MID BACK ---------- */
+defSide('mb_twist',{t:"Twist {s} (upper back)",reg:'midback',pos:['sit'],d:1,
+  cue:"Cross your arms over your chest. Keeping your hips still, <b>twist your upper body to the {s}</b> as far as it goes. Hold 3 seconds.",
+  ev:{mb_scapular:.7,mb_rib:.6}});
+def('mb_breath',{t:"Deep breath",reg:'midback',pos:ANY,d:1,
+  cue:"Take the <b>deepest breath you can</b> and hold it for 3 seconds.",
+  lbl:['No pain','Sharp pain'],
+  ev:{mb_rib:1.3}});
+def('mb_slouch_ext',{t:"Slouch, then open up",reg:'midback',pos:['sit'],d:2,
+  cue:"Slouch fully for 5 seconds, then <b>sit up tall, open your chest and squeeze your shoulder blades together</b>. Hold 5 seconds. Rate the tall position.",
+  lbl:['Feels great','Painful to hold'],
+  ev:{mb_scapular:.8}});
+defSide('mb_palp_rhomboid',{t:"Press beside the {s} blade",reg:'midback',pos:ANY,d:1,cf:'rhomboid',
+  cue:"Press (or lean a ball into a wall) in the strip <b>between your {s} shoulder blade and your spine</b>. Hug yourself first to slide the blade out of the way. Hold 15 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{mb_scapular:.9}});
+defSide('mb_palp_lat',{t:"Squeeze the {s} armpit fold",reg:'midback',pos:ANY,d:2,cf:'lat',
+  cue:"Grab the <b>back fold of your {s} armpit</b> — the thick strap of muscle — between thumb and fingers and squeeze. Hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{mb_scapular:.7,sh_frozen:.4}});
+def('mb_ext_roll',{t:"Open over a roll",reg:'midback',pos:['supine'],d:2,
+  cue:"Place a rolled towel across your <b>mid back, under the shoulder blades</b>. Support your head, and let your upper back drape backward over it for 15 seconds.",
+  lbl:['Relief','Painful'],
+  ev:{mb_rib:.5},evL:{mb_scapular:.8}});
+
+/* ---------- 8. KNEE ---------- */
+defSide('kn_ext',{t:"Straighten the {s} knee",reg:'knee',pos:ANY,d:1,
+  cue:"<b>Straighten your {s} knee fully</b> and hold it locked out for 5 seconds. Push the back of the knee down.",
+  ev:{kn_pfj:.5,kn_posterior:.9}});
+defSide('kn_flex',{t:"Bend the {s} knee",reg:'knee',pos:ANY,d:1,
+  cue:"<b>Bend your {s} knee as far as it goes</b> — heel toward your buttock — and hold 5 seconds at the limit.",
+  ev:{kn_pfj:.8}});
+def('kn_stairs',{t:"Going down stairs",reg:'knee',pos:ANY,d:1,
+  cue:"How much does <b>going DOWN stairs or a slope</b> hurt?",
+  lbl:['Not at all','Severely'],
+  ev:{kn_pfj:1.2,kn_posterior:.4}});
+def('kn_sitlong',{t:"After long sitting",reg:'knee',pos:ANY,d:1,
+  cue:"How stiff or sore is the knee after <b>sitting a long time with it bent</b> — a film, a car journey?",
+  lbl:['Not at all','Severely'],
+  ev:{kn_pfj:1.1}});
+defSide('kn_squat',{t:"Sit down and stand up — {s}",reg:'knee',pos:['sit','stand'],d:2,
+  cue:"Stand up and sit back down <b>5 times</b>, taking more weight through your {s} leg. Rate the {s} knee.",
+  ev:{kn_pfj:1,hip_glute:.3}});
+defSide('kn_palp_vl',{t:"Press the {s} outer thigh",reg:'knee',pos:ANY,d:1,cf:'vastus_lat',
+  cue:"Press firmly into the <b>outer thigh of your {s} leg</b>, working from just above the knee up toward the hip. Hold 10 seconds on the tenderest spot.",
+  lbl:['Not tender','Very tender'],
+  ev:{kn_pfj:.9}});
+defSide('kn_palp_vm',{t:"Press above the {s} kneecap, inside",reg:'knee',pos:ANY,d:1,cf:'vastus_med',
+  cue:"Press the <b>teardrop bulge on the inner thigh just above your {s} kneecap</b>, then work up the inner thigh. Hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{kn_pfj:.8}});
+defSide('kn_behind',{t:"Behind the {s} knee",reg:'knee',pos:ANY,d:2,
+  cue:"Gently feel <b>behind your {s} knee</b>. How much tenderness, tightness, or fullness is there?",
+  lbl:['Nothing','Very tender / swollen'],
+  warn:"A soft bulge behind the knee, or a calf that is swollen, warm, red and tender on one side, needs same-day medical review — do not massage it.",
+  ev:{kn_posterior:1.2}});
+defSide('kn_prone_bend',{t:"Heel to buttock — {s}",reg:'knee',pos:['prone'],d:2,
+  cue:"Face down, <b>bend your {s} heel toward your buttock</b> as far as it goes. Hold 5 seconds.",
+  ev:{kn_pfj:.8,hip_flexor:.6}});
+
+/* ---------- 9. LOWER LEG / FOOT ---------- */
+def('ft_firststep',{t:"First steps of the day",reg:'foot',pos:ANY,d:1,
+  cue:"How bad are the <b>first few steps</b> when you get out of bed, or after sitting a while?",
+  lbl:['Fine','Severe'],
+  ev:{ft_plantar:1.4}});
+defSide('ft_df',{t:"Pull toes up — {s}",reg:'foot',pos:ANY,d:1,
+  cue:"With the <b>{s} knee straight</b>, pull your toes and foot up toward your shin as far as they go. Hold 5 seconds. Then repeat with the <b>knee bent</b>.",
+  note:"Note which version is tighter or more painful — straight knee points at the gastrocnemius, bent knee at the soleus.",
+  ev:{ft_plantar:.8,ft_ankle:.6}});
+defSide('ft_pf',{t:"Point the {s} foot",reg:'foot',pos:ANY,d:1,
+  cue:"<b>Point your {s} foot and toes down</b> hard, as if pressing a pedal. Hold 5 seconds.",
+  ev:{ft_ankle:.8}});
+defSide('ft_invert',{t:"Turn the {s} foot",reg:'foot',pos:ANY,d:2,
+  cue:"Turn the sole of your <b>{s} foot inward</b>, hold 3 seconds, then <b>outward</b>, hold 3 seconds.",
+  ev:{ft_ankle:1.1}});
+defSide('ft_raise',{t:"Heel raise — {s}",reg:'foot',pos:['sit','stand'],d:2,
+  cue:"Stand (hold something for balance) and <b>rise onto the ball of your {s} foot</b> 10 times.",
+  lbl:['Easy, no pain','Can\'t do it'],
+  ev:{ft_plantar:.9,ft_ankle:.6}});
+defSide('ft_palp_arch',{t:"Press the {s} arch",reg:'foot',pos:ANY,d:1,cf:'plantar_intrinsics',
+  cue:"Press hard into the <b>sole of your {s} foot</b>, from the front of the heel forward along the arch. A ball underfoot works well. Hold 10 seconds on the sorest point.",
+  lbl:['Not tender','Very tender'],
+  ev:{ft_plantar:1}});
+defSide('ft_palp_soleus',{t:"Press the {s} lower calf",reg:'foot',pos:ANY,d:1,cf:'soleus',
+  cue:"With the <b>{s} knee bent</b>, press deep into the <b>lower third of the calf</b>, either side of the Achilles. Hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  note:"The soleus refers pain straight into the heel — it is the most missed cause of 'plantar fasciitis'.",
+  warn:"Do not massage a calf that is swollen, warm, red, or tender on one side only — get it checked the same day.",
+  ev:{ft_plantar:1.1}});
+defSide('ft_palp_gastroc',{t:"Press the {s} upper calf",reg:'foot',pos:ANY,d:2,cf:'gastroc',
+  cue:"Press into the <b>two bellies of your {s} upper calf</b>. Hold 10 seconds on the tenderest.",
+  lbl:['Not tender','Very tender'],
+  ev:{ft_plantar:.6,kn_posterior:.7}});
+defSide('ft_palp_shin',{t:"Press beside the {s} shin",reg:'foot',pos:ANY,d:2,cf:'tib_ant',
+  cue:"Press into the muscle <b>just outside your {s} shin bone</b>, in the upper half. Hold 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  warn:"If the front of the shin ever becomes tight, swollen and numb after exercise and doesn't settle with rest, seek urgent review.",
+  ev:{ft_ankle:1}});
+
+/* ---------- 10. ARM / ELBOW / HAND ---------- */
+defSide('el_grip',{t:"Grip hard — {s}",reg:'arm',pos:ANY,d:1,
+  cue:"<b>Squeeze your {s} hand into a hard fist</b> for 5 seconds, arm straight out with the elbow locked.",
+  ev:{el_lateral:1.1,el_medial:.5}});
+defSide('el_wext',{t:"Resisted wrist lift — {s}",reg:'arm',pos:ANY,d:1,
+  cue:"<b>{S} arm straight, palm down, fist closed.</b> Bend your wrist upward against resistance from your other hand, for 5 seconds.",
+  ev:{el_lateral:1.4}});
+defSide('el_wflex',{t:"Resisted wrist curl — {s}",reg:'arm',pos:ANY,d:1,
+  cue:"<b>{S} arm straight, palm UP.</b> Curl your wrist upward against resistance from your other hand, for 5 seconds.",
+  ev:{el_medial:1.4}});
+defSide('el_palp_ext',{t:"Press below the {s} outer elbow",reg:'arm',pos:ANY,d:1,cf:'ecrb',
+  cue:"Find the <b>bony point on the outside of your {s} elbow</b>, then move <b>two to three finger widths down</b> into the muscle. Press and hold 10 seconds while slowly opening and closing your fist.",
+  lbl:['Not tender','Very tender'],
+  ev:{el_lateral:1}});
+defSide('el_palp_flex',{t:"Press below the {s} inner elbow",reg:'arm',pos:ANY,d:2,cf:'pronator',
+  cue:"Find the <b>bump on the inside of your {s} elbow</b>, move two finger widths down into the muscle on the palm side, and press for 10 seconds while turning your palm up and down.",
+  lbl:['Not tender','Very tender'],
+  ev:{el_medial:1,hand_median:.5}});
+def('hand_night',{t:"Hand at night",reg:'arm',pos:ANY,d:1,
+  cue:"How much do your <b>hands go numb, tingly or painful at night</b>, or wake you needing to shake them out?",
+  lbl:['Never','Every night'],
+  ev:{hand_median:1.5,nk_neural:.5}});
+defSide('hand_phalen',{t:"Wrist press test — {s}",reg:'arm',pos:ANY,d:2,
+  cue:"Press the <b>backs of your hands together</b>, fingers pointing down, elbows out, and hold for 45 seconds. Rate the tingling in your {s} hand.",
+  lbl:['Nothing','Strong tingling'],
+  ev:{hand_median:1.4}});
+
+/* ---------- 11. JAW ---------- */
+def('jaw_open',{t:"Open wide",reg:'jaw',pos:ANY,d:1,
+  cue:"<b>Open your mouth as wide as comfortable.</b> You should fit three stacked fingers between your front teeth. Hold 3 seconds.",
+  lbl:['Full and painless','Very limited / painful'],
+  ev:{jaw_tmj:1.2}});
+def('jaw_clench',{t:"Clench",reg:'jaw',pos:ANY,d:1,
+  cue:"<b>Clench your back teeth</b> firmly for 5 seconds, then release.",
+  ev:{jaw_tmj:1}});
+defSide('jaw_palp_mass',{t:"Press the {s} jaw muscle",reg:'jaw',pos:ANY,d:1,cf:'masseter',
+  cue:"Clench once to find the <b>bulge at the back corner of your {s} jaw</b>, relax, then press it firmly with two fingers for 10 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{jaw_tmj:1.1}});
+def('jaw_palp_temp',{t:"Press your temples",reg:'jaw',pos:ANY,d:2,cf:'temporalis',
+  cue:"Press with fingertips into your <b>temples</b>, above and in front of the ears, and make slow small circles for 15 seconds.",
+  lbl:['Not tender','Very tender'],
+  ev:{jaw_tmj:.9,nk_headache:.6}});
+
+/* =====================================================================
+   ENGINE
+   ===================================================================== */
+const REGN={neck:"Neck & head",shoulder:"Shoulder",midback:"Mid back",lowback:"Low back",
+  hip:"Hip & buttock",knee:"Knee",foot:"Leg & foot",arm:"Arm & hand",jaw:"Jaw",
+  flag:"Safety check",scan:"Body scan",cx:"Background",setup:"Setup"};
+const SIDED={shoulder:1,hip:1,knee:1,foot:1,arm:1};
+const DEFLBL=['None','Mild','Moderate','Strong','Worst'];
+const BTNLBL=['None','Mild','Mod','Strong','Worst'];
+const SCOL=['var(--s0)','var(--s1)','var(--s2)','var(--s3)','var(--s4)'];
+const SHEX=['#16a34a','#84cc16','#eab308','#f97316','#dc2626'];
+
+let S=null;
+function newState(){return{
+  started:Date.now(),mode:'sit',depth:'standard',
+  q:[],i:0,ans:{},notes:{},skipped:{},
+  regions:{},sides:{},done:false,offered:{},addedBy:{}
+}}
+
+/* ---------- position / side helper questions ---------- */
+def('setup_mode',{t:"How are you set up right now?",reg:'setup',pos:ANY,d:1,type:'choice',
+  cue:"Some tests only work in one position. You can switch at any time with the <b>Adjust</b> button — I'll re-order the questions around you.",
+  opts:[{v:'sit',b:"Sitting or standing",s:"A chair with a bit of space around you"},
+        {v:'lie',b:"Lying down",s:"A bed or a mat — you'll roll onto your back, front and side"}]});
+Object.keys(SIDED).forEach(reg=>{
+  ['l','r'].forEach(s=>{
+    const W=s==='l'?'Left':'Right';
+    def('side_'+reg+'_'+s,{t:W+" "+REGN[reg].toLowerCase(),reg:'scan',pos:ANY,d:1,sidepick:reg,side:s.toUpperCase(),
+      cue:"Rate your <b>"+W.toLowerCase()+"</b> "+REGN[reg].toLowerCase().replace('&','and')+" on its own."});
+  });
+});
+def('scan_jaw',{t:"Jaw and face",reg:'scan',target:'jaw',pos:ANY,d:1,scan:true,
+  cue:"Rate your <b>jaw, face and teeth</b> — pain, clicking, or morning tightness from clenching."});
+
+/* ---------- comment keyword rules: your notes change the questions ---------- */
+const KW=[
+ {re:/\b(numb|tingl|pins|needle|asleep)\b/i,add:['cx_numb','cx_quality'],msg:"numbness"},
+ {re:/\b(shoot|electric|zap|lightning|burning|burns)\b/i,add:['cx_quality','cx_spread'],msg:"nerve-type pain"},
+ {re:/\b(sciatic|down my leg|leg pain)\b/i,add:['lb_slr','hip_palp_gmin','cx_spread'],msg:"leg pain"},
+ {re:/\b(headache|migraine|behind my eye|temple)\b/i,add:['nk_palp_subocc','nk_palp_trap','nk_retract'],msg:"headache"},
+ {re:/\b(jaw|teeth|clench|grind|tmj|bruxi)\b/i,add:['scan_jaw','jaw_open','jaw_palp_mass'],msg:"jaw"},
+ {re:/\b(cough|sneeze|deep breath|breathe|breathing|rib)\b/i,add:['cx_cough','mb_breath'],msg:"breathing"},
+ {re:/\b(groin)\b/i,add:['hip_logroll','hip_faber'],msg:"groin"},
+ {re:/\b(heel|arch|plantar)\b/i,add:['ft_firststep','ft_palp_soleus','ft_palp_arch'],msg:"heel"},
+ {re:/\b(grip|gripping|elbow|tennis elbow)\b/i,add:['el_grip','el_wext','el_palp_ext'],msg:"grip"},
+ {re:/\b(night|can't sleep|cant sleep|wakes me|3am)\b/i,add:['rf_night'],msg:"night pain"},
+ {re:/\b(fell|fall|crash|accident|collision|tackled)\b/i,add:['rf_trauma'],msg:"injury"},
+ {re:/\b(weak|weakness|giving way|gives way|drop|dropping)\b/i,add:['rf_weak'],msg:"weakness"},
+ {re:/\b(sitting|desk|driving|car)\b/i,add:['cx_sitting'],msg:"sitting"},
+ {re:/\b(standing|walking|walk)\b/i,add:['cx_standing'],msg:"standing"},
+ {re:/\b(stairs|kneecap|knee cap|squat)\b/i,add:['kn_stairs','kn_sitlong'],msg:"stairs"},
+ {re:/\b(shoulder blade|between my shoulder|interscapular)\b/i,add:['mb_palp_rhomboid','nk_palp_scalene'],msg:"shoulder blade"},
+ {re:/\b(dizzy|dizziness|vertigo|light.?head)\b/i,add:[],msg:"dizziness",
+   warn:"Noted. Skip any test that makes you dizzy, and mention dizziness to a clinician — it changes what's safe to do with the neck."}
+];
+
+/* ---------- queue helpers ---------- */
+const posOK=q=>{
+  const p=q.pos||ANY;
+  return S.mode==='sit' ? (p.includes('sit')||p.includes('stand'))
+                        : (p.includes('supine')||p.includes('prone')||p.includes('side'));
+};
+const asked=id=>S.ans[id]!==undefined||S.skipped[id];
+const queued=id=>S.q.indexOf(id)>=0;
+
+function push(ids){ids.forEach(id=>{if(Q[id]&&!asked(id)&&!queued(id))S.q.push(id)})}
+function insertNow(ids,by){
+  let at=S.i+1,n=0;
+  ids.forEach(id=>{
+    if(!Q[id]||asked(id)||queued(id))return;
+    S.q.splice(at++,0,id);if(by)S.addedBy[id]=by;n++;
+  });
+  return n;
+}
+// expand a base id into the sides currently in play
+function expandSides(id,reg){
+  if(Q[id])return [id];
+  const act=(reg&&S.sides[reg])?S.sides[reg]:null;
+  const out=[];
+  ['l','r'].forEach(s=>{
+    const cand=id+'_'+s;
+    if(!Q[cand])return;
+    const r=Q[cand].reg;
+    const sides=S.sides[r];
+    if(!sides||sides.includes(s.toUpperCase()))out.push(cand);
+  });
+  return out;
+}
+
+/* ---------- region test selection ---------- */
+function regionTests(reg){
+  const sc=S.regions[reg]||0;
+  const maxD=S.depth==='quick'?1:(S.depth==='thorough'?2:(sc>=3?2:1));
+  const sides=S.sides[reg]||[null];
+  const out=[];
+  Object.values(Q).forEach(q=>{
+    if(q.reg!==reg||q.d>maxD||q.d===3)return;
+    if(q.side&&SIDED[reg]&&!sides.includes(q.side))return;
+    out.push(q);
+  });
+  // movement tests before palpation; keep left/right adjacent
+  out.sort((a,b)=>{
+    const pa=a.cf||a.spread?1:0, pb=b.cf||b.spread?1:0;
+    if(pa!==pb)return pa-pb;
+    if(a.d!==b.d)return a.d-b.d;
+    return (a.base||a.id).localeCompare(b.base||b.id);
+  });
+  return out.filter(posOK).map(q=>q.id);
+}
+function deferredCount(){
+  let n=0;
+  Object.keys(S.regions).forEach(reg=>{
+    if((S.regions[reg]||0)<1)return;
+    regionTestsAnyPos(reg).forEach(id=>{if(!asked(id)&&!queued(id)&&!posOK(Q[id]))n++});
+  });
+  return n;
+}
+function regionTestsAnyPos(reg){
+  const sc=S.regions[reg]||0;
+  const maxD=S.depth==='quick'?1:(S.depth==='thorough'?2:(sc>=3?2:1));
+  const sides=S.sides[reg]||[null];
+  return Object.values(Q).filter(q=>q.reg===reg&&q.d<=maxD&&q.d!==3&&
+    !(q.side&&SIDED[reg]&&!sides.includes(q.side))).map(q=>q.id);
+}
+
+function buildTestPhase(){
+  const regs=Object.keys(S.regions).filter(r=>(S.regions[r]||0)>=1)
+    .sort((a,b)=>S.regions[b]-S.regions[a]);
+  regs.forEach(r=>push(regionTests(r)));
+  push(['end']);
+}
+def('end',{t:"Done",reg:'setup',pos:ANY,d:1,type:'end'});
+
+/* ---------- answering ---------- */
+function answer(v){
+  const q=cur();if(!q)return;
+  S.ans[q.id]=v;delete S.skipped[q.id];
+
+  if(q.type==='choice'){
+    if(q.id==='setup_mode'){S.mode=v==='lie'?'lie':'sit';renderPos()}
+    return advance();
+  }
+  if(q.reg==='scan'&&q.scan){
+    S.regions[q.target]=v;
+    if(v>=1&&SIDED[q.target])insertNow(['side_'+q.target+'_l','side_'+q.target+'_r']);
+    if(q.id==='scan_neck'&&v>=2)insertNow(['scan_jaw']);
+  }
+  if(q.sidepick){
+    const reg=q.sidepick;
+    S.sides[reg]=S.sides[reg]||[];
+    const lv=S.ans['side_'+reg+'_l'], rv=S.ans['side_'+reg+'_r'];
+    if(lv!==undefined&&rv!==undefined){
+      const keep=[];
+      if(Math.abs(lv-rv)>=2){keep.push(lv>rv?'L':'R')}
+      else{if(lv>=1)keep.push('L');if(rv>=1)keep.push('R')}
+      S.sides[reg]=keep.length?keep:[lv>=rv?'L':'R'];
+    }
+  }
+  if(q.flag&&v>=3)flash("Noted — I'll flag that in your summary.");
+
+  // adaptive follow-ups
+  if(q.next){
+    const ids=q.next(v,S)||[];
+    const n=insertNow(ids,'your answer');
+    if(n)flash("Added "+n+" follow-up "+(n===1?"question":"questions")+" based on that.");
+  }
+  // a whole region turning out quiet -> stop testing it
+  maybePrune(q);
+  advance();
+}
+function maybePrune(q){
+  if(!REGN[q.reg]||['scan','cx','flag','setup'].includes(q.reg))return;
+  const reg=q.reg;
+  const done=Object.keys(S.ans).filter(id=>Q[id]&&Q[id].reg===reg);
+  if(done.length<4)return;
+  const worst=Math.max(...done.map(id=>S.ans[id]));
+  if(worst<=1){
+    const drop=S.q.filter((id,ix)=>ix>S.i&&Q[id].reg===reg);
+    if(drop.length>=2){
+      S.q=S.q.filter((id,ix)=>!(ix>S.i&&Q[id].reg===reg));
+      flash("Nothing much showing in the "+REGN[reg].toLowerCase()+" — skipping "+drop.length+" more of those.");
+    }
+  }
+}
+function skip(){const q=cur();if(q){S.skipped[q.id]=1;delete S.ans[q.id]}advance()}
+function back(){if(S.i>0){S.i--;render()}}
+function advance(){
+  S.i++;save();
+  if(S.i>=S.q.length)push(['end']);
+  render();
+}
+const cur=()=>Q[S.q[S.i]];
+
+/* ---------- notes ---------- */
+function saveNote(txt){
+  const q=cur();if(!q)return;
+  txt=(txt||'').trim();
+  if(!txt){delete S.notes[q.id];closeSheet();render();return}
+  S.notes[q.id]=txt;
+  let added=0,warn='';
+  KW.forEach(r=>{
+    if(!r.re.test(txt))return;
+    if(r.warn)warn=r.warn;
+    added+=insertNow(expandAll(r.add),'your note');
+  });
+  closeSheet();save();render();
+  if(warn)flash(warn);
+  else if(added)flash("Note saved — added "+added+" question"+(added===1?"":"s")+" to follow that up.");
+  else flash("Note saved.");
+}
+function expandAll(ids){
+  const out=[];
+  ids.forEach(id=>{
+    if(Q[id]){out.push(id);return}
+    ['l','r'].forEach(s=>{if(Q[id+'_'+s])out.push(id+'_'+s)});
+  });
+  return out;
+}
+
+/* ---------- persistence ---------- */
+const LSK='painmapper_state',LSH='painmapper_history';
+function save(){try{localStorage.setItem(LSK,JSON.stringify(S))}catch(e){}}
+function load(){try{const r=localStorage.getItem(LSK);return r?JSON.parse(r):null}catch(e){return null}}
+function history(){try{return JSON.parse(localStorage.getItem(LSH)||'[]')}catch(e){return[]}}
+function saveHistory(rec){
+  try{const h=history();h.unshift(rec);localStorage.setItem(LSH,JSON.stringify(h.slice(0,30)))}catch(e){}
+}
+
+/* =====================================================================
+   ANALYSIS
+   ===================================================================== */
+function analyze(){
+  const sc={},mx={},cnt={};
+  const add=(k,got,max)=>{if(!H[k])return;sc[k]=(sc[k]||0)+got;mx[k]=(mx[k]||0)+max;cnt[k]=(cnt[k]||0)+1};
+  Object.keys(S.ans).forEach(id=>{
+    const q=Q[id];if(!q)return;const v=S.ans[id];
+    if(q.ev) for(const k in q.ev) add(k,q.ev[k]*(v/4),q.ev[k]);
+    if(q.evL)for(const k in q.evL)add(k,q.evL[k]*((4-v)/4),q.evL[k]);
+  });
+  const loud=Object.keys(S.regions).filter(r=>(S.regions[r]||0)>=2).length;
+  let list=Object.keys(sc).map(k=>({k,h:H[k],cnt:cnt[k]||0,
+    conf:(sc[k]/(mx[k]||1))*(cnt[k]/(cnt[k]+1.5))}))
+    .filter(x=>x.h)
+    // only report a pattern for a region the user actually reported and tested
+    .filter(x=>x.h.area==='general'?loud>=2:(S.regions[x.h.area]||0)>=1)
+    // and only when more than a single stray question fed it
+    .filter(x=>x.cnt>=2||(S.regions[x.h.area]||0)>=3)
+    .sort((a,b)=>b.conf-a.conf);
+
+  if(loud>=3&&(!list[0]||list[0].conf<.45))
+    list.push({k:'general_myofascial',h:H.general_myofascial,cnt:loud,conf:.30+loud*.03});
+  list=list.filter(x=>x.conf>=.14).slice(0,5);
+  if(!list.length&&Object.keys(sc).length){
+    const k=Object.keys(sc).sort((a,b)=>sc[b]-sc[a])[0];
+    if(H[k])list=[{k,h:H[k],conf:.15}];
+  }
+  return list;
+}
+
+function musclePlan(top){
+  const w={},confirmed={},referred={};
+  top.forEach((t,i)=>{
+    (t.h.mus||[]).forEach((mid,j)=>{
+      if(!M[mid])return;
+      w[mid]=(w[mid]||0)+t.conf*(1-j*0.09)*(i===0?1.35:1);
+    });
+  });
+  Object.keys(S.ans).forEach(id=>{
+    const q=Q[id],v=S.ans[id];if(!q)return;
+    if(q.cf&&M[q.cf]&&v>=2){w[q.cf]=(w[q.cf]||0)+0.35+v*0.14;confirmed[q.cf]=Math.max(confirmed[q.cf]||0,v)}
+    if(q.spread&&M[q.spread]&&v>=2){w[q.spread]=(w[q.spread]||0)+0.45+v*0.1;referred[q.spread]=v}
+  });
+  Object.keys(S.regions).forEach(r=>{
+    if((S.regions[r]||0)<2)return;
+    Object.keys(M).forEach(mid=>{if(M[mid].area===r)w[mid]=(w[mid]||0)+0.06*S.regions[r]});
+  });
+  return Object.keys(w).map(mid=>({mid,m:M[mid],w:w[mid],
+      cf:confirmed[mid]||0,rf:referred[mid]||0}))
+    .sort((a,b)=>(b.cf?1:0)-(a.cf?1:0)||b.w-a.w)
+    .slice(0,9);
+}
+
+function redFlags(){
+  const out=[];
+  const g=(id,th,txt)=>{if((S.ans[id]||0)>=th)out.push(txt)};
+  g('rf_bladder',2,"Bladder, bowel or saddle-area numbness alongside back pain needs <b>same-day emergency assessment</b>. This is the one that cannot wait.");
+  g('rf_weak',3,"Genuinely progressive weakness in a limb should be <b>assessed promptly</b>, not worked through.");
+  g('rf_systemic',3,"Fever, night sweats or unexplained weight loss with pain needs <b>medical review</b> before self-treatment.");
+  g('rf_trauma',3,"Significant trauma means a fracture should be <b>ruled out</b> before loading or massaging the area.");
+  g('rf_night',4,"Unrelenting night pain that no position relieves is worth <b>getting checked</b>.");
+  return out;
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+const $=s=>document.querySelector(s);
+const app=()=>$('#app');
+let toastT;
+function flash(msg){
+  const t=$('#toast');t.innerHTML=msg;t.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3600);
+}
+function renderPos(){
+  $('#posPill').textContent=S?(S.mode==='sit'?'Sitting':'Lying'):'—';
+  $('#posPill').className='pill on';
+}
+function progress(){
+  const tot=Math.max(S.q.length,1),p=Math.min(S.i/tot,1);
+  $('#progBar').style.width=(p*100).toFixed(1)+'%';
+}
+
+function render(){
+  if(!S){return renderHome()}
+  renderPos();progress();
+  const q=cur();
+  if(!q||q.type==='end'){
+    if(q&&!S.offered.switch&&deferredCount()>=3){
+      S.offered.switch=1;S.q.splice(S.i,0,'switch');save();return render();
+    }
+    return renderResults();
+  }
+  window.scrollTo(0,0);
+  const num=Object.keys(S.ans).length+1, est=S.q.length;
+  const labels=q.lbl?[q.lbl[0],'','','',q.lbl[1]]:DEFLBL;
+  const hasNote=!!S.notes[q.id];
+  const val=S.ans[q.id];
+
+  let h='<div class="qwrap"><div class="qmeta">'+
+    '<span class="tag">'+(REGN[q.reg]||q.reg)+(q.side?' · '+(q.side==='L'?'Left':'Right'):'')+'</span>'+
+    '<span class="xs dim">Question '+num+' of ~'+est+'</span>'+
+    (S.addedBy[q.id]?'<span class="xs" style="color:var(--accent)">added from '+S.addedBy[q.id]+'</span>':'')+
+    '</div>'+
+    '<div class="qtitle">'+q.t+'</div>'+
+    '<div class="qcue">'+q.cue+'</div>'+
+    (q.note?'<div class="qnote">'+q.note+'</div>':'')+
+    (q.warn?'<div class="qnote warn">⚠ '+q.warn+'</div>':'');
+
+  if(q.type==='choice'){
+    h+='<div class="choices">';
+    q.opts.forEach(o=>{h+='<button class="choice'+(val===o.v?' sel':'')+'" onclick="answer(\''+o.v+'\')"><b>'+o.b+'</b><span>'+o.s+'</span></button>'});
+    h+='</div>';
+  }else{
+    h+='<div class="scale">';
+    for(let i=0;i<5;i++){
+      h+='<button class="sbtn'+(val===i?' sel':'')+'" data-v="'+i+'" onclick="answer('+i+')">'+i+
+         (!q.lbl?'<small>'+BTNLBL[i]+'</small>':'')+'</button>';
+    }
+    h+='</div>';
+    if(q.lbl)h+='<div class="slabels"><span>'+labels[0]+'</span><span>'+labels[4]+'</span></div>';
+  }
+  h+='<div class="actions">'+
+     '<button class="act" onclick="back()"'+(S.i===0?' disabled style="opacity:.4"':'')+'>← Back</button>'+
+     '<button class="act'+(hasNote?' has':'')+'" onclick="openNote()">'+(hasNote?'💬 Note saved':'💬 Add note')+'</button>'+
+     '<button class="act" onclick="skip()">Skip →</button>'+
+     '</div>';
+  if(hasNote)h+='<div class="qnote">“'+esc(S.notes[q.id])+'”</div>';
+  h+='</div>';
+  app().innerHTML=h;
+}
+const esc=s=>(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+/* ---------- home ---------- */
+function renderHome(){
+  $('#posPill').className='pill';$('#posPill').textContent='—';
+  $('#progBar').style.width='0%';
+  const h=history();
+  let s='<h1>Where is this pain actually coming from?</h1>'+
+  '<p class="dim">I\'ll walk you through movements and pressure tests, one at a time. '+
+  'Answer each with a single tap, <b>0 (no pain)</b> to <b>4 (worst)</b>. '+
+  'At the end you get the likely pattern, plus exactly which muscles to massage and how.</p>'+
+  '<div class="card"><div class="row" style="gap:14px;align-items:center">'+
+    '<div style="display:flex;gap:5px">'+SHEX.map((c,i)=>'<span style="width:26px;height:26px;border-radius:7px;background:'+c+';display:flex;align-items:center;justify-content:center;font-weight:800;color:'+(i>2?'#fff':'#08120a')+'">'+i+'</span>').join('')+'</div>'+
+    '<div class="xs dim grow">Green is fine. Red is the worst it gets. Anything in between is your call — consistency matters more than precision.</div>'+
+  '</div></div>'+
+  '<button class="btn primary" onclick="start()">Start assessment</button>'+
+  '<div class="row" style="margin-top:10px">'+
+   (load()?'<button class="btn ghost grow" onclick="resume()">Resume last session</button>':'')+
+   (h.length?'<button class="btn ghost grow" onclick="renderHistory()">History ('+h.length+')</button>':'')+
+  '</div>'+
+  '<div class="card"><h3>How it adapts</h3><p class="sm dim" style="margin:0">'+
+  'Every answer reshapes what comes next. Score high on a movement and I add the tests that separate the possible causes; '+
+  'score low across a region and I drop the rest of it. Notes count too — write “tingling down my arm” and the nerve tests get added on the spot.'+
+  '</p></div>'+
+  '<div class="warnbox">This is a structured self-assessment, not a diagnosis. It can be wrong. '+
+  'Anything severe, spreading, or not improving deserves a real clinician — and a few answers will tell you to go and see one now.</div>';
+  app().innerHTML=s;
+}
+function start(){S=newState();S.q=['setup_mode','rf_bladder','rf_weak','rf_systemic','rf_trauma','rf_night'].concat(SCAN.map(x=>x[0]));save();render()}
+function resume(){S=load();if(!S)return renderHome();if(!S.q||!S.q.length)return renderHome();render()}
+
+/* ---------- after the scan: context, then tests ---------- */
+const origAdvance=advance;
+advance=function(){
+  S.i++;
+  if(S.i>=S.q.length){
+    if(!S.phase2&&Object.keys(S.regions).length>=SCAN.length){
+      S.phase2=1;
+      const any=Object.values(S.regions).some(v=>v>=1);
+      if(!any){S.q.push('end')}
+      else{
+        push(['cx_rest','cx_sitting','cx_standing','cx_morning','cx_spread']);
+        S.phase3pending=1;
+      }
+    }else if(S.phase3pending){
+      S.phase3pending=0;buildTestPhase();
+    }else if(!S.offered.switch&&deferredCount()>=3){
+      S.offered.switch=1;S.q.push('switch');
+    }else S.q.push('end');
+  }
+  save();render();
+};
+def('switch',{t:"Change position?",reg:'setup',pos:ANY,d:1,type:'choice',
+  cue:"There are more tests I can run if you change position — they cover things the current position can't.",
+  opts:[{v:'yes',b:"Yes, I'll switch",s:"Continue with the remaining tests"},
+        {v:'no',b:"No, finish here",s:"Go straight to your results"}]});
+const _answer=answer;
+answer=function(v){
+  const q=cur();
+  if(q&&q.id==='switch'){
+    S.ans[q.id]=v;
+    if(v==='yes'){
+      S.mode=S.mode==='sit'?'lie':'sit';renderPos();
+      S.q=S.q.filter(x=>x!=='end');
+      const before=S.q.length;
+      Object.keys(S.regions).filter(r=>(S.regions[r]||0)>=1)
+        .sort((a,b)=>S.regions[b]-S.regions[a]).forEach(r=>push(regionTests(r)));
+      const added=S.q.length-before;
+      S.q.push('end');
+      flash("Switched to "+(S.mode==='sit'?'sitting':'lying')+" — added "+added+" tests.");
+    }
+    if(S.q[S.q.length-1]!=='end')S.q.push('end');
+    S.i++;save();return render();
+  }
+  return _answer(v);
+};
+
+/* ---------- body figure ---------- */
+function figure(){
+  const c=r=>{const v=S.regions[r];return v?SHEX[v]:'#20262e'};
+  return '<svg class="figure" viewBox="0 0 200 330">'+
+  '<circle class="reg" cx="100" cy="26" r="18" fill="'+c('neck')+'"/>'+
+  '<rect class="reg" x="92" y="43" width="16" height="11" rx="4" fill="'+c('neck')+'"/>'+
+  '<rect class="reg" x="60" y="54" width="26" height="16" rx="8" fill="'+c('shoulder')+'"/>'+
+  '<rect class="reg" x="114" y="54" width="26" height="16" rx="8" fill="'+c('shoulder')+'"/>'+
+  '<rect class="reg" x="74" y="56" width="52" height="56" rx="12" fill="'+c('midback')+'"/>'+
+  '<rect class="reg" x="77" y="112" width="46" height="44" rx="10" fill="'+c('lowback')+'"/>'+
+  '<rect class="reg" x="73" y="156" width="54" height="30" rx="12" fill="'+c('hip')+'"/>'+
+  '<rect class="reg" x="52" y="70" width="17" height="56" rx="8" fill="'+c('shoulder')+'"/>'+
+  '<rect class="reg" x="131" y="70" width="17" height="56" rx="8" fill="'+c('shoulder')+'"/>'+
+  '<rect class="reg" x="49" y="126" width="16" height="56" rx="8" fill="'+c('arm')+'"/>'+
+  '<rect class="reg" x="135" y="126" width="16" height="56" rx="8" fill="'+c('arm')+'"/>'+
+  '<rect class="reg" x="76" y="186" width="21" height="62" rx="9" fill="'+c('knee')+'"/>'+
+  '<rect class="reg" x="103" y="186" width="21" height="62" rx="9" fill="'+c('knee')+'"/>'+
+  '<rect class="reg" x="78" y="248" width="18" height="62" rx="8" fill="'+c('foot')+'"/>'+
+  '<rect class="reg" x="104" y="248" width="18" height="62" rx="8" fill="'+c('foot')+'"/>'+
+  '<rect class="reg" x="72" y="310" width="24" height="10" rx="5" fill="'+c('foot')+'"/>'+
+  '<rect class="reg" x="104" y="310" width="24" height="10" rx="5" fill="'+c('foot')+'"/>'+
+  '</svg>'+
+  '<div class="legend">'+SHEX.map((h,i)=>'<span><i style="background:'+h+'"></i>'+i+'</span>').join('')+'</div>';
+}
+
+/* ---------- results ---------- */
+function renderResults(){
+  window.scrollTo(0,0);
+  $('#toast').classList.remove('show');
+  S.done=true;save();
+  const top=analyze(), plan=musclePlan(top), flags=redFlags();
+  const answered=Object.keys(S.ans).length;
+  let h='';
+
+  if(flags.length){
+    h+='<div class="flag"><h3>⚠ Stop and get this checked</h3>'+
+       flags.map(f=>'<p class="sm">'+f+'</p>').join('')+
+       '<p class="xs dim" style="margin-bottom:0">The rest of this report still stands, but deal with the above first.</p></div>';
+  }
+
+  h+='<h1>Your results</h1><p class="dim sm">'+answered+' answers · '+
+     (S.mode==='sit'?'sitting':'lying')+' · '+new Date().toLocaleString()+'</p>';
+
+  h+='<div class="card">'+figure()+'<table class="tbl">'+
+     Object.keys(REGN).filter(r=>S.regions[r]!==undefined&&S.regions[r]>0)
+      .sort((a,b)=>S.regions[b]-S.regions[a])
+      .map(r=>'<tr><td><span class="dotv" style="background:'+SHEX[S.regions[r]]+'"></span>'+REGN[r]+
+        (S.sides[r]&&S.sides[r].length?' <span class="dim xs">('+S.sides[r].map(x=>x==='L'?'left':'right').join(', ')+')</span>':'')+
+        '</td><td>'+S.regions[r]+'</td></tr>').join('')+
+     '</table></div>';
+
+  h+='<h2>What the pattern looks like</h2>';
+  if(!top.length){
+    h+='<div class="card sm dim">Not enough signal to call a pattern — most tests came back low. That is genuinely good news. If pain persists, run this again on a bad day, when the provocative tests will show more.</div>';
+  }
+  top.forEach((t,i)=>{
+    const pct=Math.round(Math.min(t.conf*115,97));
+    h+='<div class="hyp'+(i===0?' rank1':'')+'"><div class="top"><span class="nm">'+t.h.n+'</span>'+
+       '<span class="pct">'+pct+'%</span></div>'+
+       '<div class="meter"><i style="width:'+pct+'%"></i></div>'+
+       '<div class="sm">'+t.h.sum+'</div>';
+    if(t.h.helps)h+='<div class="why"><b>Helps:</b> '+t.h.helps.join(' · ')+'</div>';
+    if(t.h.avoid)h+='<div class="why"><b>Ease off:</b> '+t.h.avoid.join(' · ')+'</div>';
+    if(t.h.refer)h+='<div class="why" style="color:#f0b429"><b>Worth a professional look:</b> '+t.h.refer+'</div>';
+    h+='</div>';
+  });
+
+  h+='<h2>Where to massage</h2>'+
+     '<p class="sm dim">Ordered by what your answers point at. Muscles marked <span class="pri confirmed">confirmed</span> '+
+     'are ones where pressing actually reproduced your pain — start with those.</p>';
+  if(!plan.length)h+='<div class="card sm dim">No clear muscular targets came out of this run.</div>';
+  plan.forEach((p,i)=>{
+    h+='<details class="mus"'+(i<2?' open':'')+'><summary>'+
+       '<span class="mn">'+p.m.n+'</span>'+
+       '<span class="arrow">▸</span>'+
+       '<span class="badges">'+
+         (p.cf?'<span class="pri confirmed">confirmed tender</span>':'')+
+         (p.rf?'<span class="pri">referred your pain</span>':'')+
+       '</span></summary><div class="body">'+
+       '<div class="kv"><b>Where it is</b>'+p.m.loc+'</div>'+
+       '<div class="kv"><b>Where it sends pain</b>'+p.m.ref+'</div>'+
+       '<div class="kv"><b>How to work it</b>'+p.m.how+'</div>'+
+       '<div class="kv"><b>How long</b>'+p.m.dose+'</div>'+
+       '<div class="kv"><b>Stretch after</b>'+p.m.stretch+'</div>'+
+       (p.m.caution?'<div class="warnbox xs" style="margin-top:10px"><b>Caution:</b> '+p.m.caution+'</div>':'')+
+       '</div></details>';
+  });
+
+  if(plan.length){
+    h+='<h2>A 10-minute routine</h2><div class="card">';
+    let n=1;
+    plan.slice(0,3).forEach(p=>{
+      h+='<div class="step"><div class="n">'+(n++)+'</div><div class="t"><b>Press: '+p.m.n+'</b>'+
+         '<span>'+p.m.dose+'</span></div></div>';
+      h+='<div class="step"><div class="n">'+(n++)+'</div><div class="t"><b>Then stretch it</b>'+
+         '<span>'+p.m.stretch+'</span></div></div>';
+    });
+    if(top[0]&&top[0].h.helps)
+      h+='<div class="step"><div class="n">'+(n++)+'</div><div class="t"><b>Then move</b><span>'+top[0].h.helps[0]+'</span></div></div>';
+    h+='</div><p class="xs dim">Pressure should feel like a strong but bearable ache — roughly 6 out of 10, never sharp. '+
+       'Breathe out as you sink in. Expect mild soreness for a day; sharp or worsening pain means back off.</p>';
+  }
+
+  const noteIds=Object.keys(S.notes);
+  if(noteIds.length){
+    h+='<h2>Your notes</h2><div class="card">'+noteIds.map(id=>
+      '<div class="step"><div class="t"><b>'+(Q[id]?Q[id].t:id)+
+      (S.ans[id]!==undefined?' <span class="dim">— rated '+S.ans[id]+'</span>':'')+'</b><span>“'+esc(S.notes[id])+'”</span></div></div>').join('')+'</div>';
+  }
+
+  const hist=history();
+  if(hist.length){
+    h+='<h2>Compared with before</h2><div class="hist">'+
+      hist.slice(0,6).map(r=>'<div class="hbox"><b>'+new Date(r.t).toLocaleDateString()+'</b>'+
+        '<span>'+(r.top||'—')+'</span><span style="color:'+SHEX[Math.min(4,r.worst||0)]+'">worst '+(r.worst||0)+'</span></div>').join('')+
+      '</div>';
+  }
+
+  h+='<hr class="sep"><div class="row"><button class="btn sm grow" onclick="exportTxt()">Save report</button>'+
+     '<button class="btn sm grow" onclick="copyTxt()">Copy</button></div>'+
+     '<button class="btn ghost" style="margin-top:10px" onclick="finishAndHome()">Finish</button>'+
+     '<div class="warnbox" style="margin-top:16px">This is a self-assessment tool, not a diagnosis. '+
+     'Trigger point work is safe for most people but it is not a substitute for assessment when pain is severe, '+
+     'spreading, following an injury, or simply not settling over a few weeks.</div>';
+
+  app().innerHTML=h;
+  recordHistory(top);
+}
+function recordHistory(top){
+  if(S.recorded)return;S.recorded=true;save();
+  const worst=Math.max(0,...Object.values(S.regions).map(Number).filter(n=>!isNaN(n)));
+  saveHistory({t:Date.now(),top:top[0]?top[0].h.n:'No clear pattern',worst,
+    regions:S.regions,mode:S.mode});
+}
+function finishAndHome(){localStorage.removeItem(LSK);S=null;renderHome()}
+
+/* ---------- report text ---------- */
+function reportText(){
+  const top=analyze(),plan=musclePlan(top),flags=redFlags();
+  let L=['PAIN MAPPER REPORT','Date: '+new Date().toLocaleString(),
+    'Position: '+(S.mode==='sit'?'sitting/standing':'lying down'),
+    'Questions answered: '+Object.keys(S.ans).length,''];
+  if(flags.length){L.push('!! FLAGGED FOR MEDICAL REVIEW');
+    flags.forEach(f=>L.push('  - '+f.replace(/<[^>]+>/g,'')));L.push('')}
+  L.push('REGION SCORES (0-4)');
+  Object.keys(S.regions).forEach(r=>{if(S.regions[r]>0)
+    L.push('  '+(REGN[r]||r).padEnd(16)+S.regions[r]+(S.sides[r]?' ('+S.sides[r].join('/')+')':''))});
+  L.push('','LIKELY PATTERNS');
+  top.forEach((t,i)=>{L.push('  '+(i+1)+'. '+t.h.n+'  ['+Math.round(t.conf*115)+'%]');
+    L.push('     '+t.h.sum);
+    if(t.h.helps)L.push('     Helps: '+t.h.helps.join('; '));
+    if(t.h.avoid)L.push('     Ease off: '+t.h.avoid.join('; '));});
+  L.push('','MASSAGE / TRIGGER POINT TARGETS');
+  plan.forEach((p,i)=>{
+    L.push('  '+(i+1)+'. '+p.m.n+(p.cf?'   [CONFIRMED TENDER]':'')+(p.rf?'   [REFERRED YOUR PAIN]':''));
+    L.push('     Where: '+p.m.loc);
+    L.push('     Refers: '+p.m.ref);
+    L.push('     Method: '+p.m.how);
+    L.push('     Dose: '+p.m.dose);
+    L.push('     Stretch: '+p.m.stretch);
+    if(p.m.caution)L.push('     CAUTION: '+p.m.caution);
+    L.push('');
+  });
+  L.push('ALL ANSWERS');
+  S.q.forEach(id=>{const q=Q[id];if(!q||S.ans[id]===undefined)return;
+    if(q.type==='choice'||q.type==='end')return;
+    L.push('  ['+S.ans[id]+'] '+q.t+(q.side?' ('+q.side+')':''));
+    if(S.notes[id])L.push('       note: '+S.notes[id]);});
+  L.push('','Self-assessment only - not a diagnosis.');
+  return L.join('\n');
+}
+function exportTxt(){
+  const b=new Blob([reportText()],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);
+  a.download='pain-report-'+new Date().toISOString().slice(0,10)+'.txt';
+  document.body.appendChild(a);a.click();a.remove();
+  flash("Report downloaded.");
+}
+function copyTxt(){
+  const t=reportText();
+  if(navigator.clipboard&&navigator.clipboard.writeText)
+    navigator.clipboard.writeText(t).then(()=>flash("Report copied."),()=>fallbackCopy(t));
+  else fallbackCopy(t);
+}
+function fallbackCopy(t){
+  const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);
+  ta.select();try{document.execCommand('copy');flash("Report copied.")}catch(e){flash("Copy failed — use Save report instead.")}
+  ta.remove();
+}
+
+/* ---------- sheets ---------- */
+function closeSheet(){$('#sheet').classList.remove('open')}
+function openSheet(html){$('#sheetInner').innerHTML=html;$('#sheet').classList.add('open')}
+$('#sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
+
+function openNote(){
+  const q=cur();if(!q)return;
+  openSheet('<h3>Add a note</h3>'+
+    '<p class="xs dim">Describe what you actually felt — where it went, what it felt like, what you were doing. '+
+    'I read these: certain words add relevant tests straight away.</p>'+
+    '<textarea id="noteBox" placeholder="e.g. sharp on the left, ran down the outside of my leg to the ankle">'+
+    esc(S.notes[q.id]||'')+'</textarea>'+
+    '<div class="chips">'+['tingling','shooting down my leg','sharp catch','deep ache','only at night',
+      'clicking','worse after sitting','burning','numbness','tight not painful']
+      .map(c=>'<button class="chip" onclick="addChip(\''+c+'\')">+ '+c+'</button>').join('')+'</div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn ghost grow" onclick="closeSheet()">Cancel</button>'+
+      '<button class="btn primary grow" onclick="saveNote(document.getElementById(\'noteBox\').value)">Save note</button>'+
+    '</div>');
+  setTimeout(()=>{const b=$('#noteBox');b.focus();b.setSelectionRange(b.value.length,b.value.length)},60);
+}
+function addChip(c){
+  const b=$('#noteBox');b.value=(b.value?b.value.replace(/\s*$/,'')+', ':'')+c;b.focus();
+}
+
+function openAdjust(){
+  if(!S){flash("Start an assessment first.");return}
+  const q=cur();
+  const untested=Object.keys(REGN).filter(r=>!['flag','scan','cx','setup'].includes(r)&&!(S.regions[r]>=1));
+  openSheet('<h3>Adjust</h3>'+
+   '<p class="xs dim">Change things mid-assessment — I re-plan the remaining questions around whatever you pick.</p>'+
+   '<div class="kv"><b>Position</b></div><div class="row">'+
+     ['sit','lie'].map(m=>'<button class="btn sm grow'+(S.mode===m?' primary':'')+'" onclick="setMode(\''+m+'\')">'+
+       (m==='sit'?'Sitting / standing':'Lying down')+'</button>').join('')+'</div>'+
+   '<div class="kv" style="margin-top:14px"><b>How thorough</b></div><div class="row">'+
+     [['quick','Quick'],['standard','Standard'],['thorough','Thorough']].map(([v,n])=>
+       '<button class="btn sm grow'+(S.depth===v?' primary':'')+'" onclick="setDepth(\''+v+'\')">'+n+'</button>').join('')+'</div>'+
+   (untested.length?'<div class="kv" style="margin-top:14px"><b>Also test</b></div><div class="chips">'+
+     untested.map(r=>'<button class="chip" onclick="addRegion(\''+r+'\')">+ '+REGN[r]+'</button>').join('')+'</div>':'')+
+   '<div style="margin-top:14px">'+
+     (q&&!['scan','cx','flag','setup'].includes(q.reg)?
+       '<button class="btn sm" style="width:100%;margin-bottom:8px" onclick="skipRegion()">Skip the rest of the '+(REGN[q.reg]||'').toLowerCase()+' tests</button>':'')+
+     '<button class="btn sm" style="width:100%;margin-bottom:8px" onclick="finishNow()">Finish now and show results</button>'+
+     '<button class="btn sm ghost" style="width:100%" onclick="if(confirm(\'Discard this session?\')){localStorage.removeItem(LSK);S=null;closeSheet();renderHome()}">Start over</button>'+
+   '</div>');
+}
+function setMode(m){
+  if(S.mode===m){closeSheet();return}
+  S.mode=m;
+  const before=S.q.length;
+  if(S.phase2&&!S.phase3pending){
+    Object.keys(S.regions).filter(r=>(S.regions[r]||0)>=1)
+      .sort((a,b)=>S.regions[b]-S.regions[a]).forEach(r=>push(regionTests(r)));
+    if(S.q[S.q.length-1]!=='end'){S.q=S.q.filter(x=>x!=='end');S.q.push('end')}
+  }
+  // drop upcoming questions that no longer work in this position
+  S.q=S.q.filter((id,ix)=>ix<=S.i||id==='end'||posOK(Q[id]));
+  if(S.q[S.q.length-1]!=='end')S.q.push('end');
+  // ...including the one currently on screen
+  while(cur()&&!cur().type&&!posOK(cur()))S.i++;
+  closeSheet();save();renderPos();render();
+  const d=S.q.length-before;
+  flash("Now in "+(m==='sit'?'sitting':'lying')+" mode"+(d>0?" — "+d+" tests added":"")+".");
+}
+function setDepth(d){
+  S.depth=d;
+  if(S.phase2&&!S.phase3pending){
+    if(d==='thorough'){
+      Object.keys(S.regions).filter(r=>(S.regions[r]||0)>=1).forEach(r=>push(regionTests(r)));
+      S.q=S.q.filter(x=>x!=='end');S.q.push('end');
+    }else if(d==='quick'){
+      S.q=S.q.filter((id,ix)=>ix<=S.i||id==='end'||(Q[id].d||1)<=1);
+    }
+  }
+  closeSheet();save();render();
+  flash("Set to "+d+" — "+Math.max(0,S.q.length-S.i-1)+" questions left.");
+}
+function addRegion(r){
+  S.regions[r]=Math.max(S.regions[r]||0,2);
+  if(SIDED[r]&&!S.sides[r])S.sides[r]=['L','R'];
+  const n=insertNow(regionTests(r),'you');
+  closeSheet();save();render();
+  flash("Added "+n+" "+REGN[r].toLowerCase()+" tests.");
+}
+function skipRegion(){
+  const q=cur();if(!q)return closeSheet();
+  const reg=q.reg,before=S.q.length;
+  S.q=S.q.filter((id,ix)=>ix<=S.i||Q[id].reg!==reg);
+  S.skipped[q.id]=1;delete S.ans[q.id];
+  closeSheet();S.i++;save();render();
+  flash("Skipped "+(before-S.q.length)+" "+REGN[reg].toLowerCase()+" questions.");
+}
+function finishNow(){
+  S.q=S.q.slice(0,S.i);S.q.push('end');S.i=S.q.length-1;
+  closeSheet();save();render();
+}
+
+/* ---------- history ---------- */
+function renderHistory(){
+  const h=history();
+  let s='<h1>History</h1>';
+  if(!h.length)s+='<p class="dim">Nothing saved yet.</p>';
+  h.forEach(r=>{
+    s+='<div class="card"><div class="row"><div class="grow"><b>'+new Date(r.t).toLocaleString()+'</b>'+
+       '<div class="sm dim">'+r.top+'</div></div>'+
+       '<div style="font-size:26px;font-weight:800;color:'+SHEX[Math.min(4,r.worst||0)]+'">'+(r.worst||0)+'</div></div>'+
+       '<table class="tbl">'+Object.keys(r.regions||{}).filter(k=>r.regions[k]>0)
+        .sort((a,b)=>r.regions[b]-r.regions[a])
+        .map(k=>'<tr><td><span class="dotv" style="background:'+SHEX[r.regions[k]]+'"></span>'+(REGN[k]||k)+'</td><td>'+r.regions[k]+'</td></tr>').join('')+
+       '</table></div>';
+  });
+  s+='<button class="btn ghost" onclick="renderHome()">← Back</button>';
+  if(h.length)s+='<button class="btn ghost" style="margin-top:8px;color:#f87171" onclick="if(confirm(\'Delete all saved sessions?\')){localStorage.removeItem(LSH);renderHistory()}">Clear history</button>';
+  app().innerHTML=s;
+}
+
+/* ---------- keyboard ---------- */
+document.addEventListener('keydown',e=>{
+  if($('#sheet').classList.contains('open')){if(e.key==='Escape')closeSheet();return}
+  if(!S||!cur()||cur().type==='choice'||cur().type==='end')return;
+  if(/^[0-4]$/.test(e.key))answer(+e.key);
+  else if(e.key==='ArrowLeft')back();
+  else if(e.key==='ArrowRight')skip();
+  else if(e.key.toLowerCase()==='n')openNote();
+});
+
+/* ---------- go ---------- */
+renderHome();
+</script>
+</body>
+</html>
