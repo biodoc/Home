@@ -1,11 +1,26 @@
 # Pain Mapper
 
-A self-contained pain assessment you run on your phone. It walks you through movement
-and pressure tests one at a time, you answer each with a single tap on a **0–4** scale
-(green 0 → red 4), and at the end it tells you the likely pattern **and exactly which
-muscles to massage, where they are, and how to work them.**
+A pain assessment you run on your phone. It walks you through movement and pressure tests
+one at a time, you answer each with a single tap on a **0–4** scale (green 0 → red 4), and
+at the end it tells you the likely pattern **and exactly which muscles to massage, where
+they are, and how to work them.**
 
-No API, no account, no network. One HTML file, ~120 KB, zero external requests.
+It comes in two modes, sharing the same clinical content and the same interface:
+
+| | **Offline** (`index.html`) | **Claude-driven** (`live/`) |
+|---|---|---|
+| Runs on | the phone alone | a cloud box, served to the phone |
+| Picks the questions | built-in decision tree | Claude, live, from your answers so far |
+| Needs | nothing — no network at all | Node + the `claude` CLI, logged in |
+| Cost | none | subscription usage, ~$0.02 a question |
+| Speed | instant | instant within a batch, occasional ~30 s pause |
+| Reads your notes | ~20 keyword rules | actually reads them |
+
+Neither uses an API key. The offline mode uses no network whatsoever; the Claude-driven
+mode goes through the **`claude` CLI on your subscription**.
+
+Start with the offline one — it is complete on its own. See **[`live/README.md`](live/README.md)**
+to set up the Claude-driven mode.
 
 ## Run it
 
@@ -31,6 +46,10 @@ Your answers and saved reports live in that browser's localStorage only. Nothing
 the device.
 
 ## How it works
+
+*(This section describes the offline mode. The Claude-driven mode behaves the same way from
+the outside — same scale, same positions, same notes and adjustments — but Claude chooses
+each test instead of a decision tree, and writes the report itself.)*
 
 **One input, always.** Every prompt takes a 0–4 tap. Colours are fixed: 0 green, 4 red.
 Some questions relabel the ends — "clearly better → clearly worse" for repeated-movement
@@ -92,6 +111,11 @@ This is a structured self-assessment, not a diagnosis. It can be wrong. Severe, 
 post-injury, or non-settling pain needs a real clinician.
 
 ## Editing the content
+
+The clinical content lives in `index.html` and is the single source of truth for **both**
+modes — `live/build-brief.mjs` generates Claude's system brief from these same objects, so
+editing a muscle here updates what Claude is told too. Re-run `node live/build-brief.mjs`
+after changing them.
 
 Everything lives in `index.html` in four plain data structures near the top of the `<script>`:
 

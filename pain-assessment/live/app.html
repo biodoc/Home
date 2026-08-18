@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Pain Mapper — live</title>
+<style>
+/*SHARED_CSS*/
+/* additions for the Claude-driven mode */
+.thinking{display:flex;align-items:center;gap:12px;padding:22px 4px;color:var(--dim);font-size:14.5px}
+.spin{width:18px;height:18px;flex:none;border:2px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.skel{height:14px;border-radius:7px;background:linear-gradient(90deg,#1c232c,#232c37,#1c232c);
+  background-size:200% 100%;animation:sh 1.4s ease-in-out infinite;margin:9px 0}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.errbox{border:1px solid #6e2a2a;background:#2a1214;border-radius:14px;padding:14px;margin:12px 0}
+.live{display:inline-flex;align-items:center;gap:6px}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--s0);box-shadow:0 0 8px var(--s0)}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><span class="dot" id="brandDot"></span><span>Pain Mapper</span></div>
+    <button class="pill" id="posPill" onclick="openAdjust()">—</button>
+    <button class="pill" id="adjPill" onclick="openAdjust()">Adjust</button>
+  </div>
+  <div class="prog"><i id="progBar"></i></div>
+</header>
+<main id="app" class="wrap"></main>
+<div class="sheet" id="sheet"><div class="inner" id="sheetInner"></div></div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const app = () => $('#app');
+const TOKEN = new URLSearchParams(location.search).get('t') || '';
+const esc = s => (s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+const SHEX = ['#16a34a','#84cc16','#eab308','#f97316','#dc2626'];
+const BTNLBL = ['None','Mild','Mod','Strong','Worst'];
+
+let S = { sessionId:null, position:'sit', question:null, asked:0, estimate:30,
+          phase:'screen', note:'', busy:false, report:null };
+
+let toastT;
+function flash(m){ const t=$('#toast'); t.innerHTML=m; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3600); }
+
+async function api(path, body){
+  const r = await fetch(path + '?t=' + encodeURIComponent(TOKEN), {
+    method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body||{})
+  });
+  const data = await r.json().catch(()=>({error:'the server sent something unreadable'}));
+  if(!r.ok) throw new Error(data.error || ('server error ' + r.status));
+  return data;
+}
+
+/* ------------------------------------------------------------------ views -- */
+function renderHome(){
+  $('#posPill').textContent='—'; $('#posPill').className='pill';
+  $('#progBar').style.width='0%';
+  app().innerHTML =
+   '<h1>Where is this pain actually coming from?</h1>' +
+   '<p class="dim">Claude runs the assessment live — it picks each test based on how you answered ' +
+   'the last one, and writes the massage plan at the end. Answer everything with one tap, ' +
+   '<b>0 (no pain)</b> to <b>4 (worst)</b>.</p>' +
+   '<div class="card"><div class="row" style="gap:14px;align-items:center">' +
+     '<div style="display:flex;gap:5px">' + SHEX.map((c,i)=>
+       '<span style="width:26px;height:26px;border-radius:7px;background:'+c+';display:flex;align-items:center;' +
+       'justify-content:center;font-weight:800;color:'+(i>2?'#fff':'#08120a')+'">'+i+'</span>').join('') + '</div>' +
+     '<div class="xs dim grow">Green is fine, red is the worst it gets. Consistency matters more than precision.</div>' +
+   '</div></div>' +
+   '<h2>How are you set up right now?</h2>' +
+   '<div class="choices">' +
+     '<button class="choice" onclick="start(\'sit\')"><b>Sitting or standing</b>' +
+       '<span>A chair with a bit of space around you</span></button>' +
+     '<button class="choice" onclick="start(\'lie\')"><b>Lying down</b>' +
+       '<span>A bed or mat — you\'ll roll onto your back, front and side</span></button>' +
+   '</div>' +
+   (TOKEN ? '' : '<div class="errbox" style="margin-top:14px">No access token in the URL. Open the exact link the server printed.</div>') +
+   '<div class="card" style="margin-top:16px"><h3>If you lose signal</h3><p class="sm dim" style="margin:0">' +
+   'This mode needs the server. <a href="/offline">Open the offline version</a> to run the built-in ' +
+   'assessment on the phone alone — same tests, fixed decision tree instead of Claude.</p></div>' +
+   '<div class="warnbox" style="margin-top:14px">A structured self-assessment, not a diagnosis. ' +
+   'Anything severe, spreading, or not improving deserves a real clinician.</div>';
+}
+
+function progress(){
+  const total = Math.max(S.asked + Math.max(S.estimate,1), 1);
+  $('#progBar').style.width = Math.min(100, S.asked/total*100).toFixed(1)+'%';
+  $('#posPill').textContent = S.position==='lie' ? 'Lying' : 'Sitting';
+  $('#posPill').className = 'pill on';
+}
+
+function renderThinking(what){
+  progress();
+  app().innerHTML =
+    '<div class="qwrap"><div class="qmeta"><span class="tag live"><i></i>Claude</span>' +
+    '<span class="xs dim">'+ (what || 'choosing your next test') +'</span></div>' +
+    '<div class="thinking"><div class="spin"></div><div>Reading how you answered so far…</div></div>' +
+    '<div class="skel" style="width:70%"></div><div class="skel"></div><div class="skel" style="width:85%"></div>' +
+    '<p class="xs dim" style="margin-top:18px">This takes a few seconds only when Claude changes direction — ' +
+    'most answers move straight on.</p></div>';
+}
+
+function renderQuestion(){
+  const q = S.question; if(!q) return;
+  progress(); window.scrollTo(0,0);
+  const custom = q.labels && (q.labels[0].toLowerCase()!=='none' || q.labels[1].toLowerCase()!=='worst');
+  let h = '<div class="qwrap"><div class="qmeta">' +
+    '<span class="tag">' + esc(q.region) + (q.side ? ' · ' + (q.side==='L'?'Left':'Right') : '') + '</span>' +
+    '<span class="xs dim">Question ' + (S.asked+1) + (S.estimate?' of ~'+(S.asked+S.estimate):'') + '</span>' +
+    (S.phase==='confirm' ? '<span class="xs" style="color:var(--accent)">narrowing it down</span>' : '') +
+    '</div><div class="qtitle">' + esc(q.title) + '</div>' +
+    '<div class="qcue">' + esc(q.cue) + '</div>' +
+    (q.note ? '<div class="qnote">' + esc(q.note) + '</div>' : '') +
+    (q.warn ? '<div class="qnote warn">⚠ ' + esc(q.warn) + '</div>' : '') +
+    '<div class="scale">';
+  for(let i=0;i<5;i++)
+    h += '<button class="sbtn" data-v="'+i+'" onclick="answer('+i+')">'+i+
+         (custom ? '' : '<small>'+BTNLBL[i]+'</small>')+'</button>';
+  h += '</div>';
+  if(custom) h += '<div class="slabels"><span>'+esc(q.labels[0])+'</span><span>'+esc(q.labels[1])+'</span></div>';
+  h += '<div class="actions">' +
+       '<button class="act'+(S.note?' has':'')+'" onclick="openNote()">'+(S.note?'💬 Note saved':'💬 Add note')+'</button>' +
+       '<button class="act" onclick="answer(null)">Skip →</button></div>';
+  if(S.note) h += '<div class="qnote">“'+esc(S.note)+'”</div>';
+  h += '</div>';
+  app().innerHTML = h;
+}
+
+function renderError(msg, retry){
+  app().innerHTML = '<div class="errbox"><h3 style="color:#ff9b9b;margin-top:0">That didn\'t go through</h3>' +
+    '<p class="sm">'+esc(msg)+'</p></div>' +
+    '<button class="btn primary" onclick="'+retry+'">Try again</button>' +
+    '<button class="btn ghost" style="margin-top:10px" onclick="location.href=\'/offline\'">Use the offline version instead</button>';
+}
+
+/* ------------------------------------------------------------------ flow --- */
+async function start(position){
+  S.position = position; S.busy = true;
+  renderThinking('planning your assessment');
+  try{
+    const r = await api('/api/start', { position });
+    S.sessionId = r.sessionId; S.question = r.question;
+    S.asked = 0; S.estimate = r.estimate ?? 30; S.phase = r.phase;
+    S.busy = false; renderQuestion();
+  }catch(e){ S.busy=false; renderError(e.message, "start('"+position+"')"); }
+}
+
+async function answer(score){
+  if(S.busy || !S.question) return;
+  S.busy = true;
+  const q = S.question, note = S.note;
+  const willThink = note || q.replanIf==='always' ||
+                    (score!==null && q.replanIf===(score>=2?'high':'low'));
+  if(willThink) renderThinking(note ? 'reading your note' : 'rethinking the plan');
+  try{
+    const r = await api('/api/answer', { sessionId:S.sessionId, question:q, score, note });
+    S.note=''; S.asked = r.asked ?? S.asked+1;
+    if(r.done){ S.report = r.report; S.busy=false; return renderReport(); }
+    S.question = r.question; S.estimate = r.estimate ?? S.estimate; S.phase = r.phase;
+    S.busy=false; renderQuestion();
+  }catch(e){ S.busy=false; S.question=q; renderError(e.message, 'renderQuestion()'); }
+}
+
+async function switchPosition(p){
+  closeSheet();
+  if(p===S.position) return;
+  S.position = p; S.busy = true;
+  renderThinking('re-planning for '+(p==='lie'?'lying down':'sitting'));
+  try{
+    const r = await api('/api/position', { sessionId:S.sessionId, position:p });
+    if(r.question){ S.question=r.question; S.estimate=r.estimate ?? S.estimate; S.phase=r.phase; }
+    S.busy=false; renderQuestion(); flash('Now '+(p==='lie'?'lying down':'sitting')+'.');
+  }catch(e){ S.busy=false; renderError(e.message, 'renderQuestion()'); }
+}
+
+async function finishNow(){
+  closeSheet(); S.busy = true;
+  renderThinking('writing your report');
+  try{
+    const r = await api('/api/finish', { sessionId:S.sessionId });
+    S.report = r.report; S.busy=false; renderReport();
+  }catch(e){ S.busy=false; renderError(e.message, 'finishNow()'); }
+}
+
+/* ------------------------------------------------------------------ report - */
+function renderReport(){
+  const r = S.report || {};
+  window.scrollTo(0,0); $('#progBar').style.width='100%';
+  let h = '';
+  if(Array.isArray(r.flags) && r.flags.length)
+    h += '<div class="flag"><h3>⚠ Get this looked at</h3>' +
+         r.flags.map(f=>'<p class="sm">'+esc(f)+'</p>').join('') + '</div>';
+
+  h += '<h1>Your results</h1>';
+  if(r.summary) h += '<p class="sm">'+esc(r.summary)+'</p>';
+
+  if(r.regions && Object.keys(r.regions).length){
+    h += '<div class="card"><table class="tbl">' +
+      Object.entries(r.regions).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
+        '<tr><td><span class="dotv" style="background:'+SHEX[Math.max(0,Math.min(4,v))]+'"></span>'+esc(k.replace(/[_-]+/g,' '))+
+        '</td><td>'+v+'</td></tr>').join('') + '</table></div>';
+  }
+
+  if(Array.isArray(r.patterns) && r.patterns.length){
+    h += '<h2>What the pattern looks like</h2>';
+    r.patterns.forEach((p,i)=>{
+      const pct = Math.max(0, Math.min(100, Math.round(p.confidence||0)));
+      h += '<div class="hyp'+(i===0?' rank1':'')+'"><div class="top"><span class="nm">'+esc(p.name)+'</span>' +
+           '<span class="pct">'+pct+'%</span></div><div class="meter"><i style="width:'+pct+'%"></i></div>' +
+           (p.why?'<div class="sm">'+esc(p.why)+'</div>':'') +
+           (p.helps&&p.helps.length?'<div class="why"><b>Helps:</b> '+p.helps.map(esc).join(' · ')+'</div>':'') +
+           (p.avoid&&p.avoid.length?'<div class="why"><b>Ease off:</b> '+p.avoid.map(esc).join(' · ')+'</div>':'') +
+           '</div>';
+    });
+  }
+
+  if(Array.isArray(r.muscles) && r.muscles.length){
+    h += '<h2>Where to massage</h2><p class="sm dim">Muscles marked ' +
+         '<span class="pri confirmed">confirmed</span> are ones where pressing reproduced your pain — start there.</p>';
+    r.muscles.forEach((m,i)=>{
+      h += '<details class="mus"'+(i<2?' open':'')+'><summary><span class="mn">'+esc(m.name)+'</span>' +
+           '<span class="arrow">▸</span><span class="badges">' +
+           (m.confirmed?'<span class="pri confirmed">confirmed tender</span>':'') +
+           (m.referred?'<span class="pri">referred your pain</span>':'') +
+           '</span></summary><div class="body">' +
+           (m.where  ?'<div class="kv"><b>Where it is</b>'+esc(m.where)+'</div>':'') +
+           (m.refers ?'<div class="kv"><b>Where it sends pain</b>'+esc(m.refers)+'</div>':'') +
+           (m.how    ?'<div class="kv"><b>How to work it</b>'+esc(m.how)+'</div>':'') +
+           (m.dose   ?'<div class="kv"><b>How long</b>'+esc(m.dose)+'</div>':'') +
+           (m.stretch?'<div class="kv"><b>Stretch after</b>'+esc(m.stretch)+'</div>':'') +
+           (m.caution?'<div class="warnbox xs" style="margin-top:10px"><b>Caution:</b> '+esc(m.caution)+'</div>':'') +
+           '</div></details>';
+    });
+  }
+
+  if(Array.isArray(r.routine) && r.routine.length){
+    h += '<h2>Your routine</h2><div class="card">' + r.routine.map((s,i)=>
+      '<div class="step"><div class="n">'+(i+1)+'</div><div class="t"><b>'+esc(s.step)+'</b>' +
+      (s.detail?'<span>'+esc(s.detail)+'</span>':'')+'</div></div>').join('') + '</div>';
+  }
+
+  if(r.seeSomeone) h += '<div class="warnbox" style="margin-top:16px"><b>When to get it looked at:</b> '+esc(r.seeSomeone)+'</div>';
+
+  h += '<hr class="sep"><div class="row">' +
+       '<button class="btn sm grow" onclick="saveReport()">Save report</button>' +
+       '<button class="btn sm grow" onclick="copyReport()">Copy</button></div>' +
+       '<button class="btn ghost" style="margin-top:10px" onclick="location.reload()">Start another</button>' +
+       '<div class="warnbox" style="margin-top:16px">A self-assessment, not a diagnosis. Trigger point work ' +
+       'is safe for most people, but it is not a substitute for assessment when pain is severe, spreading, ' +
+       'following an injury, or simply not settling.</div>';
+  app().innerHTML = h;
+}
+
+function reportText(){
+  const r = S.report || {};
+  const L = ['PAIN MAPPER REPORT (Claude-driven)', new Date().toLocaleString(), ''];
+  if(r.summary) L.push(r.summary, '');
+  if(r.flags&&r.flags.length){ L.push('FLAGGED:'); r.flags.forEach(f=>L.push('  ! '+f)); L.push(''); }
+  if(r.patterns){ L.push('PATTERNS'); r.patterns.forEach((p,i)=>{
+    L.push('  '+(i+1)+'. '+p.name+'  ['+Math.round(p.confidence||0)+'%]');
+    if(p.why) L.push('     '+p.why);
+    if(p.helps) L.push('     Helps: '+p.helps.join('; '));
+    if(p.avoid) L.push('     Ease off: '+p.avoid.join('; '));
+  }); L.push(''); }
+  if(r.muscles){ L.push('MASSAGE TARGETS'); r.muscles.forEach((m,i)=>{
+    L.push('  '+(i+1)+'. '+m.name+(m.confirmed?'  [CONFIRMED]':'')+(m.referred?'  [REFERRED]':''));
+    ['where','refers','how','dose','stretch','caution'].forEach(k=>{ if(m[k]) L.push('     '+k+': '+m[k]); });
+    L.push('');
+  }); }
+  if(r.routine){ L.push('ROUTINE'); r.routine.forEach((s,i)=>L.push('  '+(i+1)+'. '+s.step+(s.detail?' — '+s.detail:''))); L.push(''); }
+  if(r.seeSomeone) L.push('SEE SOMEONE IF: '+r.seeSomeone, '');
+  L.push('Self-assessment only — not a diagnosis.');
+  return L.join('\n');
+}
+function saveReport(){
+  const b=new Blob([reportText()],{type:'text/plain'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download='pain-report-'+new Date().toISOString().slice(0,10)+'.txt';
+  document.body.appendChild(a); a.click(); a.remove(); flash('Report downloaded.');
+}
+function copyReport(){
+  const t=reportText();
+  if(navigator.clipboard?.writeText) navigator.clipboard.writeText(t).then(()=>flash('Report copied.'),()=>flash('Copy failed.'));
+  else flash('Copy not available — use Save report.');
+}
+
+/* ------------------------------------------------------------------ sheets - */
+function closeSheet(){ $('#sheet').classList.remove('open'); }
+function openSheet(h){ $('#sheetInner').innerHTML=h; $('#sheet').classList.add('open'); }
+$('#sheet').addEventListener('click', e=>{ if(e.target.id==='sheet') closeSheet(); });
+
+function openNote(){
+  if(!S.question) return;
+  openSheet('<h3>Add a note</h3>' +
+    '<p class="xs dim">Describe what you actually felt — where it went, what it felt like. ' +
+    'Claude reads this before choosing the next test.</p>' +
+    '<textarea id="noteBox" placeholder="e.g. sharp on the left, ran down the outside of my leg to the ankle">'+esc(S.note)+'</textarea>' +
+    '<div class="chips">' + ['tingling','shooting down my leg','sharp catch','deep ache','only at night',
+      'clicking','worse after sitting','burning','numbness','tight not painful']
+      .map(c=>'<button class="chip" onclick="addChip(\''+c+'\')">+ '+c+'</button>').join('') + '</div>' +
+    '<div class="row" style="margin-top:12px">' +
+      '<button class="btn ghost grow" onclick="closeSheet()">Cancel</button>' +
+      '<button class="btn primary grow" onclick="saveNote()">Save note</button></div>');
+  setTimeout(()=>{ const b=$('#noteBox'); b.focus(); b.setSelectionRange(b.value.length,b.value.length); },60);
+}
+function addChip(c){ const b=$('#noteBox'); b.value=(b.value?b.value.replace(/\s*$/,'')+', ':'')+c; b.focus(); }
+function saveNote(){ S.note=($('#noteBox').value||'').trim(); closeSheet(); renderQuestion();
+  if(S.note) flash('Saved — Claude will read this before the next question.'); }
+
+function openAdjust(){
+  if(!S.sessionId){ flash('Start the assessment first.'); return; }
+  openSheet('<h3>Adjust</h3>' +
+    '<p class="xs dim">Claude re-plans around whatever you change.</p>' +
+    '<div class="kv"><b>Position</b></div><div class="row">' +
+      ['sit','lie'].map(m=>'<button class="btn sm grow'+(S.position===m?' primary':'')+'" onclick="switchPosition(\''+m+'\')">' +
+        (m==='sit'?'Sitting / standing':'Lying down')+'</button>').join('') + '</div>' +
+    '<div style="margin-top:16px">' +
+      '<button class="btn sm" style="width:100%;margin-bottom:8px" onclick="finishNow()">Finish now and show results</button>' +
+      '<button class="btn sm ghost" style="width:100%" onclick="location.reload()">Start over</button></div>');
+}
+
+document.addEventListener('keydown', e=>{
+  if($('#sheet').classList.contains('open')){ if(e.key==='Escape') closeSheet(); return; }
+  if(!S.question || S.busy) return;
+  if(/^[0-4]$/.test(e.key)) answer(+e.key);
+  else if(e.key==='ArrowRight') answer(null);
+  else if(e.key.toLowerCase()==='n') openNote();
+});
+
+renderHome();
+</script>
+</body>
+</html>
