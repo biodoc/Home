@@ -1,0 +1,58 @@
+{
+  "_comment": [
+    "Copy this to config.json and edit. config.json is gitignored so your own",
+    "ticker list and cost assumptions stay local. Every value here overrides a",
+    "default in qsb/config.py; anything you omit keeps its default.",
+    "",
+    "The cost numbers below are STARTING ASSUMPTIONS, not measurements.",
+    "Replace them with spreads and slippage you have actually observed on your",
+    "own fills before treating any net figure as meaningful."
+  ],
+
+  "universe": ["UAMY", "SMR", "BBAI", "AEM"],
+
+  "validation_universe": [
+    "AAPL", "JNJ", "XOM", "KO", "CAT", "SCHW", "ETSY", "PLUG", "RIG", "GOLD"
+  ],
+
+  "start": "2015-01-01",
+  "end": null,
+  "interval": "1d",
+
+  "cache_dir": "data_cache",
+  "cache_format": "csv",
+
+  "min_avg_dollar_volume": 1000000.0,
+
+  "walk_forward": {
+    "train_days": 378,
+    "test_days": 126,
+    "min_train_days": 252,
+    "min_train_trades": 5
+  },
+
+  "costs": {
+    "stock": {
+      "half_spread_bps": 5.0,
+      "slippage_bps": 2.0,
+      "commission_per_contract": 0.0,
+      "contract_multiplier": 1,
+      "premium_pct_of_underlying": 1.0
+    },
+    "option": {
+      "half_spread_bps": 150.0,
+      "slippage_bps": 50.0,
+      "commission_per_contract": 0.65,
+      "contract_multiplier": 100,
+      "premium_pct_of_underlying": 0.05
+    }
+  },
+
+  "trading_days_per_year": 252,
+  "risk_free_rate": 0.0,
+
+  "diagnostics": {
+    "acf_max_lag": 10,
+    "variance_ratio_horizons": [2, 4, 8, 16]
+  }
+}

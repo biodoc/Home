@@ -1,0 +1,26 @@
+# Cached market data -- never committed. Re-downloadable, and can be large.
+data_cache/
+*.parquet
+*.csv.gz
+
+# Local config may hold personal ticker lists, cost assumptions, or API keys.
+# Only config.example.json is tracked.
+config.json
+config.local.json
+.env
+*.key
+secrets.*
+
+# Backtest outputs
+results/
+*.results.csv
+*.results.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+*.egg-info/

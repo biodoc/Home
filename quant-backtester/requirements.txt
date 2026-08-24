@@ -1,0 +1,12 @@
+# Pinned to the versions this project was developed and tested against.
+# Bump deliberately, then re-run `pytest` before trusting any backtest output.
+numpy==2.4.6
+pandas==3.0.5
+yfinance==1.6.0
+
+# Test suite
+pytest==9.1.1
+
+# Optional: enables parquet caching (set "cache_format": "parquet" in config).
+# CSV caching is the default and needs nothing beyond pandas.
+# pyarrow==21.0.0
