@@ -168,3 +168,49 @@ def test_a_close_only_file_needs_no_ohl_columns():
     assert len(out) == 3
     assert (out["Open"] == out["Close"]).all()
     assert any("Open absent" in n for n in report.notes)
+
+
+# -- filename portability ---------------------------------------------------
+# Cache files should be legal on Windows as well as POSIX, so a data_cache
+# copied between machines stays usable.
+@pytest.mark.parametrize("ticker,expected", [
+    ("UAMY", "UAMY_1d.csv"),
+    ("brk-b", "BRK-B_1d.csv"),          # normalised to upper case
+    ("^GSPC", "^GSPC_1d.csv"),          # caret is legal on Windows
+    ("EURUSD=X", "EURUSD=X_1d.csv"),    # equals is legal
+    ("ABC.TO", "ABC.TO_1d.csv"),        # exchange suffix
+    ("A/B", "A-B_1d.csv"),              # slash is illegal everywhere
+    ("A:B", "A-B_1d.csv"),              # colon is illegal on Windows
+    ("A*B?", "A-B-_1d.csv"),            # wildcards are illegal on Windows
+    ('A"B', "A-B_1d.csv"),              # quote is illegal on Windows
+])
+def test_cache_filenames_are_windows_legal(ticker, expected):
+    assert data.cache_path(ticker, "1d", "cache").name == expected
+
+
+def test_no_cache_filename_contains_a_windows_illegal_character():
+    for ticker in ["A/B", "A:B", "A*B", "A?B", 'A"B', "A<B", "A>B", "A|B", "A\\B"]:
+        stem = data.safe_filename_stem(ticker, "1d")
+        assert not set(stem) & set('<>:"/\\|?*'), f"{ticker} -> {stem}"
+
+
+@pytest.mark.parametrize("ticker", ["CON", "PRN", "AUX", "NUL", "COM1", "LPT9"])
+def test_windows_reserved_device_names_are_not_produced(ticker):
+    """Windows refuses to create CON.csv, PRN.csv, and friends."""
+    stem = data.safe_filename_stem(ticker, "1d")
+    assert stem.split(".")[0].upper() not in data._RESERVED_STEMS
+    # The interval suffix already does the work; assert it, do not assume it.
+    assert stem == f"{ticker}_1d"
+
+
+def test_trailing_dots_and_spaces_are_stripped():
+    """Windows silently drops them, which would collide two distinct tickers."""
+    assert data.safe_filename_stem("ABC.", "1d") == "ABC_1d"
+    assert data.safe_filename_stem("ABC ", "1d") == "ABC_1d"
+
+
+@pytest.mark.parametrize("junk", ["///", "...", "   ", "***", "?"])
+def test_a_ticker_with_no_usable_characters_is_rejected(junk):
+    """Pure punctuation is a typo or a mangled config entry, not a symbol."""
+    with pytest.raises(ValueError, match="no usable filename"):
+        data.safe_filename_stem(junk, "1d")

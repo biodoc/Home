@@ -115,12 +115,55 @@ class CleaningReport:
 # ---------------------------------------------------------------------------
 # Download + cache
 # ---------------------------------------------------------------------------
+# Characters Windows forbids in a filename. POSIX only objects to "/" and NUL,
+# but cache files should be portable between machines -- copying a data_cache
+# from a Mac to a Windows box should not produce unopenable files.
+_ILLEGAL_FILENAME_CHARS = '<>:"/\\|?*'
+
+# Windows treats these as device names and refuses to create a file with one as
+# its stem, extension or not. The "_{interval}" suffix this module appends means
+# a ticker like PRN or AUX already lands on "PRN_1d", which is not reserved --
+# but that is an accident of the naming scheme, so it is checked explicitly
+# rather than relied upon.
+_RESERVED_STEMS = frozenset(
+    ["CON", "PRN", "AUX", "NUL"]
+    + [f"COM{i}" for i in range(1, 10)]
+    + [f"LPT{i}" for i in range(1, 10)]
+)
+
+
+def safe_filename_stem(ticker: str, interval: str) -> str:
+    """Build a cache-file stem that is legal on Windows as well as POSIX.
+
+    Ticker symbols carry punctuation that filesystems disagree about: "^GSPC"
+    for indices, "EURUSD=X" for FX, "BRK-B" for share classes, and slashes on
+    some vendors. Anything Windows forbids becomes "-"; a stem that would
+    collide with a reserved device name gets an underscore appended.
+    """
+    safe = "".join("-" if ch in _ILLEGAL_FILENAME_CHARS else ch
+                   for ch in ticker.upper().strip())
+    # Trailing dots and spaces are silently stripped by Windows, which would
+    # make two different tickers map to the same file.
+    safe = safe.rstrip(". ")
+    # A stem of pure punctuation is not a ticker; it is almost always a typo or
+    # a mangled config entry, and silently caching to "---_1d.csv" would hide it.
+    if not any(ch.isalnum() for ch in safe):
+        raise ValueError(
+            f"ticker {ticker!r} has no usable filename characters "
+            "(needs at least one letter or digit)"
+        )
+
+    stem = f"{safe}_{interval}"
+    if stem.split(".")[0].upper() in _RESERVED_STEMS:
+        stem = f"{stem}_"
+    return stem
+
+
 def cache_path(ticker: str, interval: str, cache_dir: str | Path,
                fmt: str = "csv") -> Path:
     """Location of the local cache file for one ticker/interval."""
     suffix = "parquet" if fmt == "parquet" else "csv"
-    safe = ticker.upper().replace("/", "-")
-    return Path(cache_dir) / f"{safe}_{interval}.{suffix}"
+    return Path(cache_dir) / f"{safe_filename_stem(ticker, interval)}.{suffix}"
 
 
 def _read_cache(path: Path) -> pd.DataFrame:

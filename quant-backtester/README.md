@@ -38,9 +38,16 @@ left to discipline:
 ## Setup
 
 **Requires Python 3.11 or newer** — the pinned pandas and numpy do not build on
-anything older. Check with `python3 --version`; if it's too old, install a
-current Python (macOS: `brew install python@3.13`, Windows: the python.org
-installer, or `pyenv` anywhere) before continuing.
+anything older. Check with `python3 --version` (`py -3 --version` on Windows);
+if it's too old, install a current Python (macOS: `brew install python@3.13`,
+Windows: the python.org installer, or `pyenv` anywhere) before continuing.
+
+Runs on macOS, Linux, and Windows. Everything is pure Python with no compiled
+extensions of its own, all file handling goes through `pathlib`, cache filenames
+are sanitised to stay legal on Windows, and all console output is plain ASCII so
+it renders correctly in `cmd.exe` as well as modern terminals. The only
+platform-specific pieces are the convenience wrappers: `make` on macOS/Linux,
+`scripts\setup.ps1` on Windows.
 
 ### macOS / Linux
 
@@ -63,16 +70,45 @@ python backtest.py --doctor
 
 ```powershell
 cd quant-backtester
-py -3 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-pip install -e .
-python backtest.py --doctor
+.\scripts\setup.ps1
 ```
 
-`pip install -e .` is optional but convenient: it puts a `qsb-backtest` command
-on your PATH that works from any directory. Without it, run `python backtest.py`
-from inside `quant-backtester/`.
+That does the same work as `make setup`: creates the venv, installs everything,
+and runs the health check. It also checks your Python version first and tells
+you plainly if it is too old, rather than letting pip fail halfway through a
+pandas build.
+
+If PowerShell refuses to run it — *"running scripts is disabled on this
+system"* — allow it **for that window only**, which changes no machine setting:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\setup.ps1
+```
+
+Or do it by hand, which avoids the execution-policy question entirely:
+
+```powershell
+cd quant-backtester
+py -3 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install -e .
+.venv\Scripts\python.exe backtest.py --doctor
+```
+
+Calling `.venv\Scripts\python.exe` directly is the reliable path — activation
+(`.venv\Scripts\Activate.ps1`) is convenient but is exactly what the execution
+policy blocks. Activate if you like the shorter commands; skip it if you would
+rather not think about it.
+
+If `py` is not recognised, you likely installed Python from the Microsoft Store,
+which omits the `py` launcher. Use `python` in place of `py -3`, or install from
+[python.org](https://python.org/downloads) with **"Add python.exe to PATH"**
+ticked.
+
+`make` is not used on Windows. `pip install -e .` is optional everywhere: it
+puts a `qsb-backtest` command on your PATH that works from any directory.
+Without it, run `python backtest.py` from inside `quant-backtester/`.
 
 ### Check it worked
 
@@ -470,7 +506,8 @@ not evidence for tickers already tested.
 quant-backtester/
 ├── backtest.py            runnable entry point (works straight from a clone)
 ├── pyproject.toml         packaging; provides the `qsb-backtest` command
-├── Makefile               setup / test / run shortcuts
+├── Makefile               setup / test / run shortcuts (macOS/Linux)
+├── scripts/setup.ps1      one-command setup for Windows
 ├── config.example.json    copy to config.json and edit
 ├── requirements.txt       pinned dependencies
 ├── qsb/
@@ -486,7 +523,7 @@ quant-backtester/
 │   ├── validation.py      broader-universe comparison and overfit judgements
 │   ├── reporting.py       report formatting
 │   └── doctor.py          environment preflight check
-└── tests/                 253 tests, no network required
+└── tests/                 275 tests, no network required
 ```
 
 Nothing about the ticker universe, cost numbers, or window sizes is hardcoded in
@@ -497,7 +534,7 @@ Nothing about the ticker universe, cost numbers, or window sizes is hardcoded in
 ## Tests
 
 ```bash
-pytest                    # 253 tests, ~40s, no network
+pytest                    # 275 tests, ~60s, no network
 pytest tests/test_signals.py -v
 make test                 # same thing via the venv
 ```
@@ -540,6 +577,9 @@ and names the fix.
 | `INSUFFICIENT_HISTORY` | Fewer bars than one train+test window. Use an earlier `--start`, or shrink `--train-days` / `--test-days`. |
 | `NO_TRADES` everywhere | Usually the liquidity filter. Check the `forced flat` percentage in the LIQUIDITY block and lower `--min-dollar-volume` if it's screening out the whole sample. |
 | Results changed between runs | The cache went stale or was refreshed. `make clean-data` then re-run for a clean comparison. |
+| **Windows:** `running scripts is disabled on this system` | PowerShell's execution policy. `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` affects only that window, or call `.venv\Scripts\python.exe` directly and never activate. |
+| **Windows:** `py` is not recognised | A Microsoft Store Python, which omits the launcher. Use `python`, or reinstall from python.org with "Add python.exe to PATH" ticked. |
+| **Windows:** `'make' is not recognized` | Expected — `make` is macOS/Linux only. Use `.\scripts\setup.ps1`, or run the underlying commands directly. |
 
 ---
 
