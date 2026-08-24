@@ -35,13 +35,80 @@ left to discipline:
 
 ---
 
-## Quick start
+## Setup
+
+**Requires Python 3.11 or newer** — the pinned pandas and numpy do not build on
+anything older. Check with `python3 --version`; if it's too old, install a
+current Python (macOS: `brew install python@3.13`, Windows: the python.org
+installer, or `pyenv` anywhere) before continuing.
+
+### macOS / Linux
 
 ```bash
 cd quant-backtester
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+make setup          # creates .venv, installs everything, runs the health check
+```
 
+Or without `make`:
+
+```bash
+cd quant-backtester
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+python backtest.py --doctor
+```
+
+### Windows (PowerShell)
+
+```powershell
+cd quant-backtester
+py -3 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pip install -e .
+python backtest.py --doctor
+```
+
+`pip install -e .` is optional but convenient: it puts a `qsb-backtest` command
+on your PATH that works from any directory. Without it, run `python backtest.py`
+from inside `quant-backtester/`.
+
+### Check it worked
+
+```bash
+python backtest.py --doctor
+```
+
+This is the first thing to run, and the first thing to re-run when something
+misbehaves. It verifies your Python version, that every dependency is present
+and new enough, that the package imports, that your config parses, what's in
+your cache, and whether market data is actually reachable from this machine —
+each failure naming the command that fixes it.
+
+```
+[ ok ] python          3.13.2 (CPython)
+[ ok ] virtualenv      active (.venv)
+[ ok ] pandas          3.0.5
+[warn] pyarrow         not installed -- only needed for cache_format "parquet"
+[ ok ] qsb package     imports cleanly, 5 signals registered
+[ ok ] yahoo finance   query1.finance.yahoo.com and fc.yahoo.com reachable
+```
+
+The network check is more careful than it looks. "No data" has several causes
+that need completely different fixes, so it distinguishes a machine that is
+fully offline, a machine where the internet works but Yahoo specifically is
+blocked (corporate network, VPN, DNS filter, egress policy), and the case where
+Yahoo's data host is reachable but `fc.yahoo.com` is not — that last one matters
+because yfinance uses it for a cookie handshake and fails confusingly without it.
+When a proxy is configured it probes *through* the proxy, since a direct socket
+test would answer the wrong question.
+
+---
+
+## Quick start
+
+```bash
 # See what signals exist and what each one assumes
 python backtest.py --list-signals
 
@@ -55,8 +122,74 @@ python backtest.py --signals all --diagnostics --validate
 python backtest.py --tickers UAMY --signals momentum_roc --offline
 ```
 
+With `make`: `make run`, `make full`, `make test`, `make signals`, `make doctor`.
+Override the defaults inline — `make run TICKERS="AEM GOLD" SIGNALS=momentum_roc`.
+
 Copy `config.example.json` to `config.json` to set your own universe and cost
 assumptions. `config.json` is gitignored, as is `data_cache/`.
+
+---
+
+## Where data comes from
+
+Bars arrive through a **source**, selected with `--source`. Whichever you use,
+the same validation, the same repair counting, and the same cleaning report
+apply — a broker export gets exactly the scrutiny a download gets.
+
+### `yfinance` (default)
+
+```bash
+python backtest.py --tickers UAMY SMR --signals mean_reversion
+```
+
+Free and convenient, with the caveats that implies: undocumented endpoints, no
+uptime guarantee, and a habit of breaking on Yahoo's schedule rather than yours.
+Downloads are cached per ticker under `data_cache/`, so repeat runs don't re-hit
+the API.
+
+### `csv` — files you exported yourself
+
+```bash
+python backtest.py --source csv --csv-dir ~/market-data --signals all
+```
+
+For when Yahoo is unreachable, unreliable, or you're paying for better data.
+Point it at a directory and it reads what's there:
+
+```
+~/market-data/
+  UAMY_1d.csv      # preferred: {TICKER}_{interval}.csv
+  SMR.csv          # also fine: {TICKER}.csv
+```
+
+The reader is deliberately forgiving, because these files come from wherever you
+could get them. Headers are matched case-insensitively against the usual
+spellings (`Adj Close`, `adj_close`, `Vol`, `volume`, …), the date column is
+auto-detected (`Date`, `datetime`, `timestamp`, or an unnamed first column), and
+rows are sorted and trimmed to your window. **Only `Close` is required** —
+Open/High/Low are backfilled from it when absent or zero, which close-only vendor
+files and many broker exports need. Anything it can't parse produces an error
+naming the columns it actually found.
+
+Fetched bars are cached like any others, so after one run you can drop the
+exports and use `--offline`.
+
+### Adding your own source
+
+`qsb/sources.py` defines a three-method interface. A new vendor is a small class
+plus a `register()` call, not surgery on the loader:
+
+```python
+class MySource:
+    name = "mine"
+    def available(self) -> tuple[bool, str]: ...
+    def fetch(self, ticker, start, end, interval) -> pd.DataFrame: ...
+
+sources.register(MySource())
+```
+
+Return raw bars and stop there — cleaning is not your job, and doing it in the
+source would bypass the cleaning report.
 
 ---
 
@@ -335,20 +468,25 @@ not evidence for tickers already tested.
 
 ```
 quant-backtester/
-├── backtest.py            CLI entry point
+├── backtest.py            runnable entry point (works straight from a clone)
+├── pyproject.toml         packaging; provides the `qsb-backtest` command
+├── Makefile               setup / test / run shortcuts
 ├── config.example.json    copy to config.json and edit
 ├── requirements.txt       pinned dependencies
 ├── qsb/
+│   ├── cli.py             argument parsing and the run pipeline
 │   ├── config.py          config resolution; cost and walk-forward specs
-│   ├── data.py            download, validation, cleaning, caching, liquidity
+│   ├── sources.py         pluggable data sources (yfinance, csv)
+│   ├── data.py            validation, cleaning, caching, liquidity profiling
 │   ├── signals.py         the signal library + parameter grids
 │   ├── costs.py           split stock/option cost model
 │   ├── metrics.py         return construction, trades, performance stats
 │   ├── engine.py          walk-forward driver and stability analysis
 │   ├── diagnostics.py     autocorrelation and variance-ratio tests
 │   ├── validation.py      broader-universe comparison and overfit judgements
-│   └── reporting.py       report formatting
-└── tests/                 195 tests, no network required
+│   ├── reporting.py       report formatting
+│   └── doctor.py          environment preflight check
+└── tests/                 253 tests, no network required
 ```
 
 Nothing about the ticker universe, cost numbers, or window sizes is hardcoded in
@@ -359,8 +497,9 @@ Nothing about the ticker universe, cost numbers, or window sizes is hardcoded in
 ## Tests
 
 ```bash
-pytest                    # 195 tests, ~35s, no network
+pytest                    # 253 tests, ~40s, no network
 pytest tests/test_signals.py -v
+make test                 # same thing via the venv
 ```
 
 The suite covers signal calculations against known and synthetic inputs (RSI of a
@@ -384,6 +523,23 @@ Three tests matter more than the rest:
 The variance-ratio implementation is checked against theory: for AR(1) returns
 with coefficient φ, VR(2) = 1 + φ exactly, and the tests assert that for
 φ = −0.4 and φ = +0.3.
+
+---
+
+## Troubleshooting
+
+**Start with `python backtest.py --doctor`.** It diagnoses most of what follows
+and names the fix.
+
+| Symptom | Cause and fix |
+|---|---|
+| `ModuleNotFoundError: No module named 'qsb'` | Running from the wrong directory. `cd quant-backtester`, or `pip install -e .` to run from anywhere. |
+| pandas/numpy fail to install | Python older than 3.11. Check `python3 --version`, install a newer one, delete `.venv`, and redo setup. |
+| `yfinance returned no rows` | Several causes — `--doctor` tells them apart: a delisted or mistyped symbol, a range with no sessions, an interval Yahoo won't serve that far back (intraday history is short), rate limiting, or no route to Yahoo. |
+| Yahoo unreachable but the internet works | A corporate network, VPN, DNS filter, or egress policy is blocking it. Allow `query1`/`query2`/`fc.yahoo.com`, or export bars elsewhere and use `--source csv`. |
+| `INSUFFICIENT_HISTORY` | Fewer bars than one train+test window. Use an earlier `--start`, or shrink `--train-days` / `--test-days`. |
+| `NO_TRADES` everywhere | Usually the liquidity filter. Check the `forced flat` percentage in the LIQUIDITY block and lower `--min-dollar-volume` if it's screening out the whole sample. |
+| Results changed between runs | The cache went stale or was refreshed. `make clean-data` then re-run for a clean comparison. |
 
 ---
 

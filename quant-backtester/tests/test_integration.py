@@ -241,3 +241,98 @@ def test_thin_liquidity_filter_is_applied_from_the_cli(cache, capsys):
     assert code == 0
     assert "forced flat" in out
     assert "NO_TRADES" in out
+
+
+# ---------------------------------------------------------------------------
+# Local-run surface: CSV source, doctor, and the installed entry point
+# ---------------------------------------------------------------------------
+def test_csv_source_runs_a_full_backtest_without_a_cache(tmp_path, capsys):
+    """The offline path is a first-class source, not a degraded fallback."""
+    exports = tmp_path / "exports"
+    exports.mkdir()
+    rng = np.random.default_rng(21)
+    close = 25.0 * np.exp(np.cumsum(rng.normal(0, 0.02, 900)))
+    pd.DataFrame(
+        {"close": close, "volume": rng.uniform(1e6, 5e6, 900)},
+        index=pd.bdate_range("2016-01-04", periods=900),
+    ).rename_axis("date").to_csv(exports / "LOCAL_1d.csv")
+
+    code, out = run_cli([
+        "--tickers", "LOCAL", "--signals", "mean_reversion",
+        "--source", "csv", "--csv-dir", str(exports),
+        "--cache-dir", str(tmp_path / "cache"),
+        "--train-days", "252", "--test-days", "126",
+    ], capsys)
+
+    assert code == 0
+    assert "data source          : csv" in out
+    assert "AGGREGATE OUT-OF-SAMPLE PERFORMANCE" in out
+    assert "VERDICT:" in out
+    # The fetch is cached on the way through, so a later run needs no exports.
+    assert (tmp_path / "cache" / "LOCAL_1d.csv").exists()
+
+
+def test_csv_source_without_a_directory_exits_nonzero(capsys):
+    code, _ = run_cli(["--tickers", "AAA", "--source", "csv"], capsys)
+    assert code == 2
+
+
+def test_csv_source_pointed_at_nothing_exits_nonzero(tmp_path, capsys):
+    code, _ = run_cli([
+        "--tickers", "AAA", "--source", "csv", "--csv-dir", str(tmp_path / "empty"),
+    ], capsys)
+    assert code == 2
+
+
+def test_unknown_source_exits_nonzero(cache, capsys):
+    code, _ = run_cli([
+        "--tickers", "AAA", "--signals", "mean_reversion",
+        "--source", "bloomberg", "--cache-dir", str(cache),
+    ], capsys)
+    assert code == 2
+
+
+def test_doctor_runs_and_reports(capsys):
+    code, out = run_cli(["--doctor", "--no-network"], capsys)
+    assert "ENVIRONMENT CHECK" in out
+    assert "python" in out
+    assert "qsb package" in out
+    assert code in (0, 1)
+
+
+def test_doctor_exit_code_reflects_blocking_problems(capsys, monkeypatch):
+    from qsb import doctor as doctor_mod
+
+    def broken(report, *a, **k):
+        report.add("python", doctor_mod.FAIL, "too old", "upgrade")
+
+    monkeypatch.setattr(doctor_mod, "check_python", broken)
+    code, out = run_cli(["--doctor", "--no-network"], capsys)
+    assert code == 1
+    assert "blocking problem" in out
+
+
+def test_doctor_reports_the_configured_cache(tmp_path, capsys):
+    (tmp_path / "UAMY_1d.csv").write_text("Date,Close\n2024-01-02,10\n")
+    code, out = run_cli([
+        "--doctor", "--no-network", "--cache-dir", str(tmp_path),
+    ], capsys)
+    assert "UAMY" in out
+
+
+def test_installed_console_script_is_importable():
+    """`qsb-backtest` resolves to the same entry point as backtest.py."""
+    from qsb.cli import main as package_main
+
+    assert backtest.main is package_main
+
+
+def test_offline_run_needs_no_source_configuration(cache, capsys):
+    """--offline must not require a usable source; the cache is enough."""
+    code, out = run_cli([
+        "--tickers", "AAA", "--signals", "mean_reversion",
+        "--cache-dir", str(cache), "--offline", "--source", "csv",
+        "--train-days", "252", "--test-days", "126",
+    ], capsys)
+    assert code == 0
+    assert "cache only (--offline)" in out

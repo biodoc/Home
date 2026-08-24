@@ -23,6 +23,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from . import sources
+
 logger = logging.getLogger(__name__)
 
 OHLCV = ["Open", "High", "Low", "Close", "Volume"]
@@ -149,38 +151,21 @@ def fetch_prices(
     start: str,
     end: str | None,
     interval: str = "1d",
+    source: "sources.DataSource | None" = None,
 ) -> pd.DataFrame:
-    """Download raw OHLCV bars from yfinance.
+    """Fetch raw OHLCV bars from a data source.
 
-    yfinance is imported lazily so that the rest of the package -- and the whole
-    test suite -- works with no network access and no yfinance installed.
+    Defaults to yfinance when no source is given, which keeps the simple case
+    simple. The source is constructed lazily so that the rest of the package --
+    and the whole test suite -- works with no network and no yfinance installed.
     """
-    try:
-        import yfinance as yf
-    except ImportError as exc:  # pragma: no cover - env dependent
-        raise RuntimeError(
-            "yfinance is required to download data. Install it with "
-            "`pip install -r requirements.txt`, or run with --offline to use "
-            "only cached data."
-        ) from exc
+    src = source or sources.build("yfinance")
 
-    logger.info("downloading %s %s bars %s -> %s", ticker, interval, start, end)
-    df = yf.download(
-        ticker,
-        start=start,
-        end=end,
-        interval=interval,
-        auto_adjust=True,      # split/dividend adjusted OHLC
-        progress=False,
-        threads=False,
-        multi_level_index=False,
-    )
-    if df is None or df.empty:
-        raise ValueError(
-            f"yfinance returned no rows for {ticker} "
-            f"({start} -> {end}, interval={interval})"
-        )
-    return df
+    ok, why = src.available()
+    if not ok:
+        raise RuntimeError(f"data source {src.name!r} is unusable: {why}")
+
+    return src.fetch(ticker, start, end, interval)
 
 
 def load_prices(
@@ -188,22 +173,29 @@ def load_prices(
     cfg,
     force_refresh: bool = False,
     offline: bool = False,
+    source: "sources.DataSource | None" = None,
 ) -> tuple[pd.DataFrame, CleaningReport]:
     """Return cleaned bars for one ticker, using the local cache when possible.
 
     Args:
         ticker: symbol to load.
         cfg: a `config.Config`.
-        force_refresh: ignore any cached file and re-download.
-        offline: never hit the network; fail if there is no cache.
+        force_refresh: ignore any cached file and re-fetch.
+        offline: never fetch; use the cache only, and fail if it is missing.
+        source: where to fetch from when the cache misses. Defaults to the
+            source named in the config (yfinance unless changed).
 
     Returns:
         (dataframe, cleaning_report). The dataframe has a sorted, unique,
         tz-naive DatetimeIndex and columns Open/High/Low/Close/Volume, plus
         derived columns `dollar_volume` and `tradable`.
+
+    Note that whatever the source, the bars go through the same
+    `validate_and_clean` pass. A broker export gets the same scrutiny as a
+    download.
     """
     path = cache_path(ticker, cfg.interval, cfg.cache_dir, cfg.cache_format)
-    source = "cache"
+    source_label = "cache"
     raw: pd.DataFrame | None = None
 
     if not force_refresh and path.exists():
@@ -218,14 +210,16 @@ def load_prices(
         if offline:
             raise FileNotFoundError(
                 f"--offline was requested but no cache exists for {ticker} at "
-                f"{path}. Run once without --offline to populate the cache."
+                f"{path}. Run once without --offline to populate the cache, or "
+                "point --source csv at a directory of exported files."
             )
-        raw = fetch_prices(ticker, cfg.start, cfg.end, cfg.interval)
-        source = "yfinance (fresh download)"
+        src = source or sources.build(getattr(cfg, "source", "yfinance"), cfg)
+        raw = fetch_prices(ticker, cfg.start, cfg.end, cfg.interval, source=src)
+        source_label = f"{src.name} (fresh fetch)"
         _write_cache(raw, path)
 
     df, report = validate_and_clean(raw, ticker)
-    report.source = source
+    report.source = source_label
 
     df = annotate_liquidity(df, cfg.min_avg_dollar_volume)
     return df, report
@@ -298,14 +292,22 @@ def validate_and_clean(
         report.missing_close = missing_close
         df = df[df["Close"].notna()]
 
-    price_cols = ["Open", "High", "Low", "Close"]
-    nonpositive = (df[price_cols] <= 0).any(axis=1) & df[price_cols].notna().any(axis=1)
-    # Only Close being non-positive is disqualifying; a NaN Open is not.
-    nonpositive = (df["Close"] <= 0) | nonpositive
+    # Only a bad CLOSE disqualifies a session. The engine trades on Close, and
+    # plenty of legitimate sources leave Open/High/Low blank or zero -- broker
+    # exports and close-only vendor files routinely do. Dropping those rows
+    # would throw away perfectly good sessions over a column nothing reads.
+    nonpositive = df["Close"] <= 0
     n_bad = int(nonpositive.sum())
     if n_bad:
         report.nonpositive_prices = n_bad
         df = df[~nonpositive]
+
+    # Non-positive O/H/L is treated as absent rather than fatal, then filled
+    # from Close below along with genuine NaNs.
+    for col in ["Open", "High", "Low"]:
+        bad = df[col] <= 0
+        if bad.any():
+            df[col] = df[col].where(~bad)
 
     # Backfill absent O/H/L from Close so downstream code can rely on the
     # columns existing. Close is never synthesised.

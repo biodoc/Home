@@ -138,3 +138,33 @@ def test_offline_without_cache_raises_clearly(cfg, tmp_path):
     cfg.cache_dir = str(tmp_path)
     with pytest.raises(FileNotFoundError, match="offline"):
         data.load_prices("NOPE", cfg, offline=True)
+
+
+def test_a_bad_close_drops_the_row_but_a_bad_open_does_not():
+    """Only Close disqualifies a session -- the engine trades on Close alone.
+
+    Broker exports and close-only vendor files routinely carry zero or blank
+    Open/High/Low. Dropping those sessions would discard good data over a
+    column nothing reads.
+    """
+    df = make_frame([10.0, 11.0, 12.0, 13.0])
+    df.loc[df.index[1], ["Open", "High", "Low"]] = 0.0      # survivable
+    df.loc[df.index[2], "Close"] = -1.0                     # fatal
+
+    out, report = data.validate_and_clean(df, "MIXED")
+
+    assert report.nonpositive_prices == 1, "only the bad Close counts"
+    assert len(out) == 3, "the zero-Open row must survive"
+    assert out["Close"].tolist() == [10.0, 11.0, 13.0]
+    # The zeroed columns are backfilled from Close, not left at zero.
+    assert out.loc[out.index[1], "Open"] == 11.0
+    assert report.missing_ohlc_filled == 3
+
+
+def test_a_close_only_file_needs_no_ohl_columns():
+    """A frame carrying nothing but Close must load and backfill cleanly."""
+    df = make_frame([10.0, 11.0, 12.0])[["Close", "Volume"]]
+    out, report = data.validate_and_clean(df, "CLOSEONLY")
+    assert len(out) == 3
+    assert (out["Open"] == out["Close"]).all()
+    assert any("Open absent" in n for n in report.notes)

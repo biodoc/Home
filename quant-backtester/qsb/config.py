@@ -54,6 +54,11 @@ DEFAULTS: dict[str, Any] = {
     "end": None,               # None -> today
     "interval": "1d",          # yfinance interval string
 
+    # Where bars come from: "yfinance" to download, or "csv" to read a
+    # directory of files you exported yourself (see qsb/sources.py).
+    "source": "yfinance",
+    "csv_dir": None,           # required when source == "csv"
+
     "cache_dir": "data_cache",
     "cache_format": "csv",     # "csv" (no extra deps) or "parquet" (needs pyarrow)
 
@@ -154,6 +159,8 @@ class Config:
     start: str
     end: str | None
     interval: str
+    source: str
+    csv_dir: str | None
     cache_dir: str
     cache_format: str
     min_avg_dollar_volume: float
@@ -228,6 +235,8 @@ class Config:
             start=str(raw["start"]),
             end=raw["end"],
             interval=str(raw["interval"]),
+            source=str(raw.get("source", "yfinance")),
+            csv_dir=str(raw["csv_dir"]) if raw.get("csv_dir") else None,
             cache_dir=str(raw["cache_dir"]),
             cache_format=cache_format,
             min_avg_dollar_volume=float(raw["min_avg_dollar_volume"]),

@@ -6,7 +6,10 @@
     "",
     "The cost numbers below are STARTING ASSUMPTIONS, not measurements.",
     "Replace them with spreads and slippage you have actually observed on your",
-    "own fills before treating any net figure as meaningful."
+    "own fills before treating any net figure as meaningful.",
+    "",
+    "source: \"yfinance\" downloads; \"csv\" reads exported files from csv_dir.",
+    "Set csv_dir when source is \"csv\" (or pass --csv-dir on the command line)."
   ],
 
   "universe": ["UAMY", "SMR", "BBAI", "AEM"],
@@ -18,6 +21,9 @@
   "start": "2015-01-01",
   "end": null,
   "interval": "1d",
+
+  "source": "yfinance",
+  "csv_dir": null,
 
   "cache_dir": "data_cache",
   "cache_format": "csv",
