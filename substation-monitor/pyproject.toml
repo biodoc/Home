@@ -1,0 +1,16 @@
+[project]
+name = "substation-monitor"
+version = "0.1.0"
+description = "Edge computer-vision monitor for substation wildlife and PPE"
+requires-python = ">=3.10"
+dependencies = [
+  "pyyaml>=6",
+  "opencv-python>=4.8",
+]
+
+[project.optional-dependencies]
+detect = ["ultralytics>=8.3"]   # AGPL-3.0 — check licensing before utility deployment
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["monitor*"]

@@ -1,0 +1,35 @@
+# Substation Wildlife Monitor — default config.
+# Classes are config-driven: add one here (plus training data) with no code changes.
+
+site: pilot-01
+
+cameras:
+  - id: cam1
+    source: data/footage            # RTSP URL later; folder of clips for the POC
+  # - id: cam2
+  #   source: rtsp://user:pass@10.0.0.12/stream1
+
+models:
+  wildlife:
+    weights: yolo11n.pt             # pretrained COCO to start; swap for fine-tuned weights
+    confidence: 0.25
+    imgsz: 1280                     # high res helps small animals at substation distances
+  # ppe:
+  #   weights: models/hardhat.pt
+  #   confidence: 0.40
+
+# Monitor class -> labels the model may emit for it.
+# Pretrained COCO has bird/person/cat/dog but no squirrel/raccoon/snake;
+# those need fine-tuning. cat/dog mapped as stand-ins for the POC only.
+classes:
+  squirrel: { model: wildlife, labels: [squirrel, cat] }
+  raccoon:  { model: wildlife, labels: [raccoon, dog] }
+  bird:     { model: wildlife, labels: [bird] }
+  snake:    { model: wildlife, labels: [snake] }
+  person:   { model: wildlife, labels: [person] }
+
+sampling:
+  fps: 2                            # 1–5 fps is plenty for wildlife presence
+
+retention:
+  clip_days: 60
