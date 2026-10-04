@@ -11,7 +11,9 @@ ROOT = Path(__file__).resolve().parent.parent
 def test_default_config_loads():
     cfg = load_config(ROOT / "config" / "default.yaml")
     assert cfg.clip_retention_days == 60
-    assert {"squirrel", "raccoon", "bird", "snake", "person"} <= cfg.classes.keys()
+    assert set(cfg.classes) == {"squirrel", "bird", "raccoon", "person"}
+    assert cfg.security.classes == ["person"]
+    assert cfg.security.loiter_sec == 30
 
 
 def test_label_map():

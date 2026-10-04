@@ -8,7 +8,7 @@ from monitor.types import Detection
 class Detector(Protocol):
     """Anything that turns a BGR frame into mapped detections.
 
-    Wildlife and hard-hat models both implement this, so the pipeline
+    Wildlife and any optional add-on models (e.g. hard-hat) implement this, so the pipeline
     can run any number of them on the same frame.
     """
 
