@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Test App</title>
+  <meta name="theme-color" content="#141826" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Test App" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <style>
+    :root { --bg:#141826; --card:#1f2438; --fg:#e8eaf2; --muted:#8a90a8; --accent:#ffc400; --ok:#3ddc84; --bad:#ff5c5c; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
+    }
+    h1 { font-size: 24px; margin: 4px 0 16px; display: flex; justify-content: space-between; align-items: center; }
+    .pill { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--card); color: var(--muted); }
+    .card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+    .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
+    .row span:last-child { font-variant-numeric: tabular-nums; text-align: right; }
+    button {
+      appearance: none; border: 0; border-radius: 10px; padding: 12px 16px; font: inherit; font-weight: 600;
+      background: var(--accent); color: #141826; width: 100%; margin-top: 8px;
+    }
+    button.secondary { background: #2d3350; color: var(--fg); }
+    .count { font-size: 56px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+    .ok { color: var(--ok); } .bad { color: var(--bad); }
+    .hint { font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>Test App <span class="pill" id="mode">browser</span></h1>
+
+  <div class="card" id="installHint" hidden>
+    <h2>Install</h2>
+    <div class="hint">In Safari: tap <b>Share</b> → <b>Add to Home Screen</b>. Then open it from the home screen icon.</div>
+  </div>
+
+  <div class="card">
+    <h2>Tap counter (persists)</h2>
+    <div class="count" id="count">0</div>
+    <button id="inc">Tap</button>
+    <button class="secondary" id="reset">Reset</button>
+  </div>
+
+  <div class="card">
+    <h2>Device</h2>
+    <div class="row"><span>Screen</span><span id="screen"></span></div>
+    <div class="row"><span>Pixel ratio</span><span id="dpr"></span></div>
+    <div class="row"><span>Network</span><span id="net"></span></div>
+    <div class="row"><span>Battery</span><span id="batt">n/a on iOS</span></div>
+    <div class="row"><span>Offline cache</span><span id="sw">–</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Motion (accelerometer)</h2>
+    <div class="row"><span>a<sub>x</sub></span><span id="ax">–</span></div>
+    <div class="row"><span>a<sub>y</sub></span><span id="ay">–</span></div>
+    <div class="row"><span>a<sub>z</sub></span><span id="az">–</span></div>
+    <div class="row"><span>|a| (m/s²)</span><span id="amag">–</span></div>
+    <button class="secondary" id="motion">Enable motion</button>
+  </div>
+
+  <div class="card">
+    <h2>Location</h2>
+    <div class="row"><span>Lat / Lon</span><span id="ll">–</span></div>
+    <div class="row"><span>Accuracy</span><span id="acc">–</span></div>
+    <button class="secondary" id="geo">Get location</button>
+  </div>
+
+  <div class="hint" style="text-align:center">v1 · all data stays on device</div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    // Standalone detection (launched from home screen icon)
+    const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    $('mode').textContent = standalone ? 'installed' : 'browser';
+    $('installHint').hidden = standalone;
+
+    // Persistent counter
+    let n = 0;
+    try { n = +localStorage.getItem('count') || 0; } catch {}
+    const render = () => { $('count').textContent = n; try { localStorage.setItem('count', n); } catch {} };
+    $('inc').onclick = () => { n++; render(); };
+    $('reset').onclick = () => { n = 0; render(); };
+    render();
+
+    // Device info
+    $('screen').textContent = `${screen.width}×${screen.height}`;
+    $('dpr').textContent = devicePixelRatio;
+    const net = () => {
+      $('net').textContent = navigator.onLine ? 'online' : 'offline';
+      $('net').className = navigator.onLine ? 'ok' : 'bad';
+    };
+    addEventListener('online', net); addEventListener('offline', net); net();
+
+    // Accelerometer (iOS requires a user gesture + permission)
+    $('motion').onclick = async () => {
+      try {
+        if (typeof DeviceMotionEvent?.requestPermission === 'function') {
+          if (await DeviceMotionEvent.requestPermission() !== 'granted') throw new Error('denied');
+        }
+        addEventListener('devicemotion', e => {
+          const a = e.accelerationIncludingGravity; if (!a) return;
+          $('ax').textContent = a.x.toFixed(2);
+          $('ay').textContent = a.y.toFixed(2);
+          $('az').textContent = a.z.toFixed(2);
+          $('amag').textContent = Math.hypot(a.x, a.y, a.z).toFixed(2);
+        });
+        $('motion').textContent = 'Motion enabled';
+      } catch (err) { $('motion').textContent = 'Motion: ' + err.message; }
+    };
+
+    // Geolocation
+    $('geo').onclick = () => {
+      $('ll').textContent = 'locating…';
+      navigator.geolocation.getCurrentPosition(
+        p => {
+          $('ll').textContent = `${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`;
+          $('acc').textContent = `±${Math.round(p.coords.accuracy)} m`;
+        },
+        e => { $('ll').textContent = e.message; },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    };
+
+    // Service worker → works offline after first load
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => { $('sw').textContent = 'ready'; $('sw').className = 'ok'; })
+        .catch(() => { $('sw').textContent = 'unavailable'; });
+    } else { $('sw').textContent = 'unsupported'; }
+  </script>
+</body>
+</html>
